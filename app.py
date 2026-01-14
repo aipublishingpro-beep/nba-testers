@@ -7,8 +7,8 @@ st.set_page_config(page_title="NBA Edge Finder - TEST MODE", page_icon="🎯", l
 
 # ========== TEST MODE BANNER ==========
 st.markdown("""
-<div style='background:linear-gradient(135deg,#ff6600,#ff3300);padding:15px;border-radius:10px;margin-bottom:20px;text-align:center'>
-    <span style='color:#fff;font-size:1.5em;font-weight:bold'>⚠️ TEST MODE — Signals Only. No Trading.</span>
+<div style='background:linear-gradient(135deg,#ff6600,#ff3300);padding:12px;border-radius:10px;margin-bottom:15px;text-align:center'>
+    <span style='color:#fff;font-size:1.3em;font-weight:bold'>⚠️ TEST MODE — Signals Only. No Trading.</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -35,132 +35,134 @@ TEAM_ABBREVS = {
     "Utah Jazz": "Utah", "Washington Wizards": "Washington"
 }
 
+TEAM_STATS = {
+    "Atlanta": {"pace": 100.5, "def_rank": 26, "net_rating": -3.2, "ft_rate": 0.26, "reb_rate": 49.5, "three_pct": 36.2, "home_win_pct": 0.52, "away_win_pct": 0.35, "division": "Southeast"},
+    "Boston": {"pace": 99.8, "def_rank": 2, "net_rating": 11.2, "ft_rate": 0.24, "reb_rate": 51.2, "three_pct": 38.5, "home_win_pct": 0.78, "away_win_pct": 0.65, "division": "Atlantic"},
+    "Brooklyn": {"pace": 98.2, "def_rank": 22, "net_rating": -4.5, "ft_rate": 0.23, "reb_rate": 48.8, "three_pct": 35.8, "home_win_pct": 0.42, "away_win_pct": 0.28, "division": "Atlantic"},
+    "Charlotte": {"pace": 99.5, "def_rank": 28, "net_rating": -6.8, "ft_rate": 0.25, "reb_rate": 48.2, "three_pct": 34.5, "home_win_pct": 0.38, "away_win_pct": 0.22, "division": "Southeast"},
+    "Chicago": {"pace": 98.8, "def_rank": 20, "net_rating": -2.1, "ft_rate": 0.24, "reb_rate": 49.8, "three_pct": 35.2, "home_win_pct": 0.48, "away_win_pct": 0.32, "division": "Central"},
+    "Cleveland": {"pace": 97.2, "def_rank": 3, "net_rating": 8.5, "ft_rate": 0.27, "reb_rate": 52.5, "three_pct": 36.8, "home_win_pct": 0.75, "away_win_pct": 0.58, "division": "Central"},
+    "Dallas": {"pace": 99.0, "def_rank": 12, "net_rating": 4.2, "ft_rate": 0.26, "reb_rate": 50.2, "three_pct": 37.5, "home_win_pct": 0.62, "away_win_pct": 0.48, "division": "Southwest"},
+    "Denver": {"pace": 98.5, "def_rank": 10, "net_rating": 5.8, "ft_rate": 0.25, "reb_rate": 51.8, "three_pct": 36.5, "home_win_pct": 0.72, "away_win_pct": 0.45, "division": "Northwest"},
+    "Detroit": {"pace": 97.8, "def_rank": 29, "net_rating": -8.2, "ft_rate": 0.24, "reb_rate": 48.5, "three_pct": 34.2, "home_win_pct": 0.32, "away_win_pct": 0.18, "division": "Central"},
+    "Golden State": {"pace": 100.2, "def_rank": 8, "net_rating": 3.5, "ft_rate": 0.23, "reb_rate": 50.5, "three_pct": 38.2, "home_win_pct": 0.65, "away_win_pct": 0.42, "division": "Pacific"},
+    "Houston": {"pace": 101.5, "def_rank": 18, "net_rating": 1.2, "ft_rate": 0.28, "reb_rate": 50.8, "three_pct": 35.5, "home_win_pct": 0.55, "away_win_pct": 0.38, "division": "Southwest"},
+    "Indiana": {"pace": 103.5, "def_rank": 24, "net_rating": 2.8, "ft_rate": 0.26, "reb_rate": 49.2, "three_pct": 37.8, "home_win_pct": 0.58, "away_win_pct": 0.42, "division": "Central"},
+    "LA Clippers": {"pace": 98.0, "def_rank": 14, "net_rating": 1.5, "ft_rate": 0.25, "reb_rate": 50.0, "three_pct": 36.0, "home_win_pct": 0.55, "away_win_pct": 0.40, "division": "Pacific"},
+    "LA Lakers": {"pace": 99.5, "def_rank": 15, "net_rating": 2.2, "ft_rate": 0.27, "reb_rate": 51.0, "three_pct": 35.8, "home_win_pct": 0.58, "away_win_pct": 0.42, "division": "Pacific"},
+    "Memphis": {"pace": 100.8, "def_rank": 6, "net_rating": 4.5, "ft_rate": 0.26, "reb_rate": 52.2, "three_pct": 35.2, "home_win_pct": 0.68, "away_win_pct": 0.48, "division": "Southwest"},
+    "Miami": {"pace": 97.5, "def_rank": 5, "net_rating": 3.8, "ft_rate": 0.24, "reb_rate": 50.8, "three_pct": 36.5, "home_win_pct": 0.65, "away_win_pct": 0.45, "division": "Southeast"},
+    "Milwaukee": {"pace": 99.2, "def_rank": 9, "net_rating": 5.2, "ft_rate": 0.28, "reb_rate": 51.5, "three_pct": 37.2, "home_win_pct": 0.70, "away_win_pct": 0.52, "division": "Central"},
+    "Minnesota": {"pace": 98.8, "def_rank": 4, "net_rating": 7.5, "ft_rate": 0.25, "reb_rate": 52.8, "three_pct": 36.2, "home_win_pct": 0.72, "away_win_pct": 0.55, "division": "Northwest"},
+    "New Orleans": {"pace": 100.0, "def_rank": 16, "net_rating": 1.8, "ft_rate": 0.27, "reb_rate": 50.5, "three_pct": 36.8, "home_win_pct": 0.55, "away_win_pct": 0.38, "division": "Southwest"},
+    "New York": {"pace": 98.5, "def_rank": 7, "net_rating": 6.2, "ft_rate": 0.25, "reb_rate": 51.2, "three_pct": 37.0, "home_win_pct": 0.68, "away_win_pct": 0.52, "division": "Atlantic"},
+    "Oklahoma City": {"pace": 99.8, "def_rank": 1, "net_rating": 12.5, "ft_rate": 0.26, "reb_rate": 52.0, "three_pct": 37.5, "home_win_pct": 0.82, "away_win_pct": 0.68, "division": "Northwest"},
+    "Orlando": {"pace": 97.0, "def_rank": 11, "net_rating": 3.2, "ft_rate": 0.26, "reb_rate": 51.5, "three_pct": 35.5, "home_win_pct": 0.62, "away_win_pct": 0.45, "division": "Southeast"},
+    "Philadelphia": {"pace": 98.2, "def_rank": 13, "net_rating": 2.5, "ft_rate": 0.28, "reb_rate": 50.2, "three_pct": 36.2, "home_win_pct": 0.58, "away_win_pct": 0.42, "division": "Atlantic"},
+    "Phoenix": {"pace": 99.0, "def_rank": 17, "net_rating": 2.0, "ft_rate": 0.25, "reb_rate": 49.8, "three_pct": 36.8, "home_win_pct": 0.60, "away_win_pct": 0.42, "division": "Pacific"},
+    "Portland": {"pace": 99.5, "def_rank": 27, "net_rating": -5.5, "ft_rate": 0.24, "reb_rate": 48.5, "three_pct": 35.0, "home_win_pct": 0.40, "away_win_pct": 0.25, "division": "Northwest"},
+    "Sacramento": {"pace": 101.2, "def_rank": 19, "net_rating": 0.8, "ft_rate": 0.25, "reb_rate": 49.5, "three_pct": 36.5, "home_win_pct": 0.55, "away_win_pct": 0.38, "division": "Pacific"},
+    "San Antonio": {"pace": 100.5, "def_rank": 25, "net_rating": -4.8, "ft_rate": 0.26, "reb_rate": 49.0, "three_pct": 34.8, "home_win_pct": 0.42, "away_win_pct": 0.28, "division": "Southwest"},
+    "Toronto": {"pace": 98.8, "def_rank": 21, "net_rating": -1.5, "ft_rate": 0.24, "reb_rate": 49.5, "three_pct": 35.5, "home_win_pct": 0.48, "away_win_pct": 0.32, "division": "Atlantic"},
+    "Utah": {"pace": 100.2, "def_rank": 30, "net_rating": -7.5, "ft_rate": 0.25, "reb_rate": 48.0, "three_pct": 35.2, "home_win_pct": 0.35, "away_win_pct": 0.22, "division": "Northwest"},
+    "Washington": {"pace": 101.0, "def_rank": 23, "net_rating": -6.2, "ft_rate": 0.27, "reb_rate": 48.8, "three_pct": 34.5, "home_win_pct": 0.38, "away_win_pct": 0.25, "division": "Southeast"}
+}
+
+TEAM_LOCATIONS = {
+    "Atlanta": (33.757, -84.396), "Boston": (42.366, -71.062), "Brooklyn": (40.683, -73.976),
+    "Charlotte": (35.225, -80.839), "Chicago": (41.881, -87.674), "Cleveland": (41.496, -81.688),
+    "Dallas": (32.790, -96.810), "Denver": (39.749, -105.010), "Detroit": (42.341, -83.055),
+    "Golden State": (37.768, -122.388), "Houston": (29.751, -95.362), "Indiana": (39.764, -86.156),
+    "LA Clippers": (34.043, -118.267), "LA Lakers": (34.043, -118.267), "Memphis": (35.138, -90.051),
+    "Miami": (25.781, -80.188), "Milwaukee": (43.045, -87.917), "Minnesota": (44.979, -93.276),
+    "New Orleans": (29.949, -90.082), "New York": (40.751, -73.994), "Oklahoma City": (35.463, -97.515),
+    "Orlando": (28.539, -81.384), "Philadelphia": (39.901, -75.172), "Phoenix": (33.446, -112.071),
+    "Portland": (45.532, -122.667), "Sacramento": (38.580, -121.500), "San Antonio": (29.427, -98.438),
+    "Toronto": (43.643, -79.379), "Utah": (40.768, -111.901), "Washington": (38.898, -77.021)
+}
+
+STAR_PLAYERS = {
+    "Atlanta": ["Trae Young"], "Boston": ["Jayson Tatum", "Jaylen Brown"], "Brooklyn": ["Mikal Bridges"],
+    "Charlotte": ["LaMelo Ball"], "Chicago": ["Zach LaVine", "DeMar DeRozan"],
+    "Cleveland": ["Donovan Mitchell", "Darius Garland", "Evan Mobley"],
+    "Dallas": ["Luka Doncic", "Kyrie Irving"], "Denver": ["Nikola Jokic", "Jamal Murray"],
+    "Detroit": ["Cade Cunningham"], "Golden State": ["Stephen Curry", "Draymond Green"],
+    "Houston": ["Jalen Green", "Alperen Sengun"], "Indiana": ["Tyrese Haliburton", "Pascal Siakam"],
+    "LA Clippers": ["Kawhi Leonard", "Paul George"], "LA Lakers": ["LeBron James", "Anthony Davis"],
+    "Memphis": ["Ja Morant", "Desmond Bane"], "Miami": ["Jimmy Butler", "Bam Adebayo"],
+    "Milwaukee": ["Giannis Antetokounmpo", "Damian Lillard"],
+    "Minnesota": ["Anthony Edwards", "Karl-Anthony Towns", "Rudy Gobert"],
+    "New Orleans": ["Zion Williamson", "Brandon Ingram"], "New York": ["Jalen Brunson", "Julius Randle"],
+    "Oklahoma City": ["Shai Gilgeous-Alexander", "Chet Holmgren", "Jalen Williams"],
+    "Orlando": ["Paolo Banchero", "Franz Wagner"], "Philadelphia": ["Joel Embiid", "Tyrese Maxey"],
+    "Phoenix": ["Kevin Durant", "Devin Booker", "Bradley Beal"], "Portland": ["Anfernee Simons"],
+    "Sacramento": ["De'Aaron Fox", "Domantas Sabonis"], "San Antonio": ["Victor Wembanyama"],
+    "Toronto": ["Scottie Barnes"], "Utah": ["Lauri Markkanen"], "Washington": ["Jordan Poole"]
+}
+
 # ========== SIDEBAR LEGEND ==========
 with st.sidebar:
-    st.header("📖 TESTER LEGEND")
+    st.header("📖 LEGEND")
     
     st.markdown("""
     <div style='background:#ff6600;padding:8px;border-radius:5px;margin-bottom:10px'>
-        <span style='color:#fff;font-weight:bold'>⚠️ TEST MODE ONLY</span>
+        <span style='color:#fff;font-weight:bold'>⚠️ TEST MODE</span>
     </div>
     """, unsafe_allow_html=True)
     
-    st.subheader("🎯 Signal Types")
+    st.subheader("🎯 ML Signal Tiers")
     st.markdown("""
-    🟢 **STRONG NO** → High confidence Under  
-    🔵 **NO** → Under signal  
-    🟡 **LEAN NO** → Slight Under lean  
-    ⚪ **SKIP** → No clear edge  
-    🟡 **LEAN YES** → Slight Over lean  
-    🔵 **YES** → Over signal  
-    🟢 **STRONG YES** → High confidence Over
+    🟢 **STRONG** → 8.0+ score  
+    🔵 **SIGNAL** → 6.5 - 7.9  
+    🟡 **LEAN** → 5.5 - 6.4  
+    ⚪ **TOSS-UP** → 4.5 - 5.4  
+    🔴 **SKIP** → Below 4.5
     """)
     
     st.divider()
     
-    st.subheader("📊 What Signals Use")
+    st.subheader("📊 10-Factor ML System")
     st.markdown("""
-    • Live pace (pts/min)  
-    • Live projection  
-    • Minutes played gate  
-    • Cushion vs threshold
+    1. Rest Advantage  
+    2. Net Rating Edge  
+    3. Defense Ranking  
+    4. Home Court  
+    5. Injury Impact  
+    6. Travel Fatigue  
+    7. Home/Away Splits  
+    8. Division Rivalry  
+    9. Altitude (Denver)  
+    10. Team Quality
     """)
     
     st.divider()
     
-    st.subheader("🔥 Pace Labels")
+    st.subheader("📊 10-Factor Totals")
     st.markdown("""
-    🟢 **SLOW** → Under-friendly  
-    🟡 **AVG** → Neutral  
-    🟠 **FAST** → Over-leaning  
-    🔴 **SHOOTOUT** → Over-friendly
-    """)
-    
-    st.divider()
-    
-    st.subheader("📈 Live Trend")
-    st.markdown("""
-    🔥 **HOT** → Scoring up  
-    ❄️ **COLD** → Scoring down  
-    ➡️ **NORMAL** → Steady pace
-    """)
-    
-    st.divider()
-    
-    st.subheader("🎯 Cushion Tiers")
-    st.markdown("""
-    🟢 **BIG** → +20 pts or more  
-    🟡 **MEDIUM** → +10 to +19  
-    🟠 **SMALL** → +5 to +9  
-    🔴 **NONE** → Under +5
+    1. 🐢 Pace  
+    2. 🛡️ Defense Rank  
+    3. 🛏️ Rest/Fatigue  
+    4. 🎯 3PT Shooting  
+    5. 🏥 Star Injuries  
+    6. 💥 Blowout Risk  
+    7. 🏔️ Altitude  
+    8. 🎁 FT Rate  
+    9. 🏀 Rebound Control  
+    10. 🏠 Home Scoring
     """)
     
     st.divider()
     st.caption("TESTER v1.0")
 
-st.divider()
+# ========== HELPER FUNCTIONS ==========
+def calc_distance(loc1, loc2):
+    from math import radians, sin, cos, sqrt, atan2
+    lat1, lon1 = radians(loc1[0]), radians(loc1[1])
+    lat2, lon2 = radians(loc2[0]), radians(loc2[1])
+    dlat, dlon = lat2 - lat1, lon2 - lon1
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    return 3959 * 2 * atan2(sqrt(a), sqrt(1-a))
 
-# ========== FEEDBACK SECTION ==========
-st.subheader("💬 TESTER FEEDBACK")
-
-st.markdown("""
-<div style='background:#1a1a2e;padding:15px;border-radius:10px;margin-bottom:15px'>
-    <span style='color:#00aaff;font-weight:bold'>Help improve this app!</span><br>
-    <span style='color:#aaa'>Share bugs, suggestions, or questions below.</span>
-</div>
-""", unsafe_allow_html=True)
-
-fb_col1, fb_col2 = st.columns([1, 2])
-
-feedback_type = fb_col1.selectbox(
-    "Category",
-    ["🐛 Bug Report", "💡 Suggestion", "❓ Question", "🎯 Signal Feedback", "📝 Other"],
-    key="feedback_type"
-)
-
-feedback_text = st.text_area(
-    "Your feedback",
-    placeholder="Describe the issue, suggestion, or question...",
-    height=120,
-    key="feedback_text"
-)
-
-# Optional contact
-feedback_name = st.text_input("Name (optional)", placeholder="Your name", key="feedback_name")
-
-if st.button("📋 Copy Feedback to Clipboard", use_container_width=True):
-    if feedback_text:
-        clipboard_text = f"""
-NBA EDGE FINDER - TESTER FEEDBACK
----------------------------------
-Category: {feedback_type}
-From: {feedback_name if feedback_name else 'Anonymous'}
-Date: {now.strftime('%Y-%m-%d %I:%M %p ET')}
-
-{feedback_text}
----------------------------------
-        """.strip()
-        
-        st.code(clipboard_text, language=None)
-        st.success("👆 Copy the text above and send via email or Discord!")
-    else:
-        st.warning("Please enter your feedback first")
-
-# Alternative: Direct email link
-if feedback_text:
-    import urllib.parse
-    subject = urllib.parse.quote(f"NBA Edge Finder Feedback: {feedback_type}")
-    body = urllib.parse.quote(f"Category: {feedback_type}\nFrom: {feedback_name if feedback_name else 'Anonymous'}\n\n{feedback_text}")
-    
-    st.markdown(f"""
-    <a href="mailto:aipublishingpro@gmail.com?subject={subject}&body={body}" style='display:inline-block;background:#00aa00;color:white;padding:10px 20px;border-radius:5px;text-decoration:none;margin-top:10px'>
-        📧 Open in Email App
-    </a>
-    """, unsafe_allow_html=True)
-
-st.caption("Your feedback helps make the app better!")
-
-# ========== DATA FUNCTIONS ==========
 def fetch_espn_scores():
     url = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
     try:
@@ -213,6 +215,41 @@ def fetch_yesterday_teams():
     except:
         return set()
 
+def fetch_espn_injuries():
+    injuries = {}
+    try:
+        url = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/injuries"
+        resp = requests.get(url, timeout=10)
+        data = resp.json()
+        for team_data in data.get("injuries", []):
+            team_name = team_data.get("team", {}).get("displayName", "")
+            team_key = TEAM_ABBREVS.get(team_name, team_name)
+            injuries[team_key] = []
+            for player in team_data.get("injuries", []):
+                name = player.get("athlete", {}).get("displayName", "")
+                status = player.get("status", "")
+                injuries[team_key].append({"name": name, "status": status})
+    except:
+        pass
+    return injuries
+
+def get_injury_score(team, injuries):
+    team_injuries = injuries.get(team, [])
+    stars = STAR_PLAYERS.get(team, [])
+    score = 0
+    out_stars = []
+    for inj in team_injuries:
+        name = inj.get("name", "")
+        status = inj.get("status", "").upper()
+        is_star = any(star.lower() in name.lower() for star in stars)
+        if "OUT" in status:
+            score += 4.0 if is_star else 1.0
+            if is_star:
+                out_stars.append(name)
+        elif "DAY-TO-DAY" in status or "GTD" in status or "QUESTIONABLE" in status:
+            score += 2.5 if is_star else 0.5
+    return score, out_stars
+
 def get_minutes_played(period, clock, status_type):
     if status_type == "STATUS_FINAL":
         return 48 if period <= 4 else 48 + (period - 4) * 5
@@ -237,278 +274,524 @@ def get_minutes_played(period, clock, status_type):
     except:
         return (period - 1) * 12 if period <= 4 else 48 + (period - 5) * 5
 
-def get_pace_label(pace):
-    """Return pace label and color"""
-    if pace < 4.5:
-        return "🟢 SLOW", "#00ff00"
-    elif pace < 4.8:
-        return "🟡 AVG", "#ffff00"
-    elif pace < 5.2:
-        return "🟠 FAST", "#ff8800"
+def calc_ml_score(home_team, away_team, yesterday_teams, injuries):
+    """Calculate 10-factor ML score. Returns (pick, score, edge, reasons, home_stars, away_stars)"""
+    home = TEAM_STATS.get(home_team, {})
+    away = TEAM_STATS.get(away_team, {})
+    home_loc = TEAM_LOCATIONS.get(home_team, (0, 0))
+    away_loc = TEAM_LOCATIONS.get(away_team, (0, 0))
+    
+    score_home = 0
+    score_away = 0
+    reasons_home = []
+    reasons_away = []
+    
+    # 1. REST ADVANTAGE
+    home_b2b = home_team in yesterday_teams
+    away_b2b = away_team in yesterday_teams
+    if away_b2b and not home_b2b:
+        score_home += 1.0
+        reasons_home.append("🛏️ Opp B2B")
+    elif home_b2b and not away_b2b:
+        score_away += 1.0
+        reasons_away.append("🛏️ Opp B2B")
+    elif not home_b2b and not away_b2b:
+        score_home += 0.5
+        score_away += 0.5
+    
+    # 2. NET RATING
+    home_net = home.get('net_rating', 0)
+    away_net = away.get('net_rating', 0)
+    net_diff = home_net - away_net
+    if net_diff > 5:
+        score_home += 1.0
+        reasons_home.append(f"📊 Net +{home_net:.1f}")
+    elif net_diff > 2:
+        score_home += 0.7
+        reasons_home.append(f"📊 Net +{home_net:.1f}")
+    elif net_diff > 0:
+        score_home += 0.5
+    elif net_diff > -2:
+        score_away += 0.5
+    elif net_diff > -5:
+        score_away += 0.7
+        reasons_away.append(f"📊 Net +{away_net:.1f}")
     else:
-        return "🔴 SHOOTOUT", "#ff0000"
+        score_away += 1.0
+        reasons_away.append(f"📊 Net +{away_net:.1f}")
+    
+    # 3. DEFENSE RANK
+    home_def = home.get('def_rank', 15)
+    away_def = away.get('def_rank', 15)
+    if home_def <= 5:
+        score_home += 1.0
+        reasons_home.append(f"🛡️ #{home_def} DEF")
+    elif home_def <= 10:
+        score_home += 0.7
+        reasons_home.append(f"🛡️ #{home_def} DEF")
+    elif home_def <= 15:
+        score_home += 0.4
+    if away_def <= 5:
+        score_away += 1.0
+        reasons_away.append(f"🛡️ #{away_def} DEF")
+    elif away_def <= 10:
+        score_away += 0.7
+        reasons_away.append(f"🛡️ #{away_def} DEF")
+    elif away_def <= 15:
+        score_away += 0.4
+    
+    # 4. HOME COURT
+    score_home += 1.0
+    
+    # 5. INJURY IMPACT
+    home_inj, home_stars = get_injury_score(home_team, injuries)
+    away_inj, away_stars = get_injury_score(away_team, injuries)
+    inj_diff = away_inj - home_inj
+    if inj_diff > 3:
+        score_home += 1.0
+        if away_stars:
+            reasons_home.append(f"🏥 {away_stars[0][:10]} OUT")
+    elif inj_diff > 1:
+        score_home += 0.6
+        if away_stars:
+            reasons_home.append(f"🏥 {away_stars[0][:10]} OUT")
+    elif inj_diff < -3:
+        score_away += 1.0
+        if home_stars:
+            reasons_away.append(f"🏥 {home_stars[0][:10]} OUT")
+    elif inj_diff < -1:
+        score_away += 0.6
+        if home_stars:
+            reasons_away.append(f"🏥 {home_stars[0][:10]} OUT")
+    else:
+        score_home += 0.3
+        score_away += 0.3
+    
+    # 6. TRAVEL FATIGUE
+    travel_miles = calc_distance(away_loc, home_loc)
+    if travel_miles > 2000:
+        score_home += 1.0
+        reasons_home.append(f"✈️ {int(travel_miles)}mi")
+    elif travel_miles > 1500:
+        score_home += 0.7
+        reasons_home.append(f"✈️ {int(travel_miles)}mi")
+    elif travel_miles > 1000:
+        score_home += 0.5
+    elif travel_miles > 500:
+        score_home += 0.3
+    
+    # 7. HOME/AWAY SPLITS
+    home_hw = home.get('home_win_pct', 0.5)
+    away_aw = away.get('away_win_pct', 0.5)
+    reasons_home.append(f"🏠 {int(home_hw*100)}% home")
+    if home_hw > 0.65:
+        score_home += 0.8
+    elif home_hw > 0.55:
+        score_home += 0.5
+    if away_aw < 0.35:
+        score_home += 0.5
+        reasons_home.append(f"📉 Opp {int(away_aw*100)}% road")
+    elif away_aw < 0.45:
+        score_home += 0.3
+        reasons_home.append(f"📉 Opp {int(away_aw*100)}% road")
+    
+    # 8. DIVISION RIVALRY
+    if home.get('division') == away.get('division') and home.get('division'):
+        score_home += 0.5
+        reasons_home.append("⚔️ Division")
+    
+    # 9. ALTITUDE
+    if home_team == "Denver":
+        score_home += 1.0
+        reasons_home.append("🏔️ Altitude")
+    
+    # 10. QUALITY FACTOR
+    if home_net > 5:
+        score_home += 0.5
+        if f"📊 Net +{home_net:.1f}" not in reasons_home:
+            reasons_home.append("⭐ Elite")
+    if away_net > 5:
+        score_away += 0.5
+        if f"📊 Net +{away_net:.1f}" not in reasons_away:
+            reasons_away.append("⭐ Elite")
+    
+    # Normalize to 10-point scale
+    total = score_home + score_away
+    if total > 0:
+        home_final = round((score_home / total) * 10, 1)
+        away_final = round((score_away / total) * 10, 1)
+    else:
+        home_final = 5.0
+        away_final = 5.0
+    
+    if home_final >= away_final:
+        pick = home_team
+        score = home_final
+        edge = round((home_final - 5) * 4, 0)
+        reasons = reasons_home[:4]
+    else:
+        pick = away_team
+        score = away_final
+        edge = round((away_final - 5) * 4, 0)
+        reasons = reasons_away[:4]
+    
+    return pick, score, edge, reasons, home_stars, away_stars
 
-def get_trend_label(pace, avg_pace=4.85):
-    """Return trend based on pace vs average"""
-    if pace > avg_pace + 0.3:
-        return "🔥 HOT"
-    elif pace < avg_pace - 0.3:
-        return "❄️ COLD"
+def get_signal_tier(score):
+    if score >= 8.0:
+        return "🟢 STRONG", "#00ff00"
+    elif score >= 6.5:
+        return "🔵 SIGNAL", "#00aaff"
+    elif score >= 5.5:
+        return "🟡 LEAN", "#ffff00"
+    elif score >= 4.5:
+        return "⚪ TOSS-UP", "#888888"
     else:
-        return "➡️ NORMAL"
+        return "🔴 SKIP", "#ff0000"
 
-def get_signal(mins, cushion, pace, side):
-    """
-    Simple condition-based signal engine.
-    Uses: live pace, live projection, minute gate, cushion gate.
-    Returns: signal label, color
-    """
-    # Hard minute gate - need enough data
-    if mins < 6:
-        return "⏳ WAITING", "#888888"
+def calc_totals_score(home_team, away_team, yesterday_teams, injuries):
+    home = TEAM_STATS.get(home_team, {})
+    away = TEAM_STATS.get(away_team, {})
     
-    # Hard cushion gate
-    if cushion < 5:
-        return "⚪ SKIP", "#888888"
+    score_under = 0
+    score_over = 0
+    reasons_under = []
+    reasons_over = []
     
-    # Pace factor for signal strength
-    pace_boost = 0
-    if side == "NO":
-        if pace < 4.5:
-            pace_boost = 2
-        elif pace < 4.8:
-            pace_boost = 1
-        elif pace > 5.2:
-            pace_boost = -1
-    else:  # YES
-        if pace > 5.2:
-            pace_boost = 2
-        elif pace > 4.8:
-            pace_boost = 1
-        elif pace < 4.5:
-            pace_boost = -1
+    # 1. PACE
+    home_pace = home.get('pace', 100)
+    away_pace = away.get('pace', 100)
+    avg_pace = (home_pace + away_pace) / 2
+    if avg_pace < 98.5:
+        score_under += 1.5
+        reasons_under.append(f"🐢 Slow {avg_pace:.1f}")
+    elif avg_pace < 99.5:
+        score_under += 1.0
+        reasons_under.append(f"🐢 Pace {avg_pace:.1f}")
+    elif avg_pace > 101:
+        score_over += 1.5
+        reasons_over.append(f"🔥 Fast {avg_pace:.1f}")
+    elif avg_pace > 100:
+        score_over += 1.0
+        reasons_over.append(f"🔥 Pace {avg_pace:.1f}")
     
-    # Signal based on cushion + pace
-    effective_cushion = cushion + (pace_boost * 3)
+    # 2. DEFENSE
+    home_def = home.get('def_rank', 15)
+    away_def = away.get('def_rank', 15)
+    avg_def = (home_def + away_def) / 2
+    if avg_def <= 8:
+        score_under += 1.5
+        reasons_under.append(f"🛡️ DEF #{int(avg_def)}")
+    elif avg_def <= 12:
+        score_under += 1.0
+        reasons_under.append(f"🛡️ DEF #{int(avg_def)}")
+    elif avg_def >= 22:
+        score_over += 1.5
+        reasons_over.append(f"💥 DEF #{int(avg_def)}")
+    elif avg_def >= 18:
+        score_over += 1.0
+        reasons_over.append(f"💥 DEF #{int(avg_def)}")
     
-    if effective_cushion >= 25:
-        return f"🟢 STRONG {side}", "#00ff00"
-    elif effective_cushion >= 15:
-        return f"🔵 {side}", "#00aaff"
-    elif effective_cushion >= 8:
-        return f"🟡 LEAN {side}", "#ffff00"
-    elif cushion >= 5:
-        return f"🟡 LEAN {side}", "#ffff00"
+    # 3. REST/FATIGUE
+    home_b2b = home_team in yesterday_teams
+    away_b2b = away_team in yesterday_teams
+    if home_b2b and away_b2b:
+        score_under += 1.5
+        reasons_under.append("🛏️ Both B2B")
+    elif home_b2b or away_b2b:
+        score_under += 0.75
+        tired_team = home_team if home_b2b else away_team
+        reasons_under.append(f"🛏️ {tired_team[:3]} B2B")
+    
+    # 4. 3PT SHOOTING
+    home_3pt = home.get('three_pct', 36)
+    away_3pt = away.get('three_pct', 36)
+    avg_3pt = (home_3pt + away_3pt) / 2
+    if avg_3pt < 35.5:
+        score_under += 1.0
+        reasons_under.append(f"🎯 Low 3PT {avg_3pt:.1f}%")
+    elif avg_3pt > 37.5:
+        score_over += 1.0
+        reasons_over.append(f"🎯 High 3PT {avg_3pt:.1f}%")
+    
+    # 5. INJURY IMPACT
+    home_inj, home_stars = get_injury_score(home_team, injuries)
+    away_inj, away_stars = get_injury_score(away_team, injuries)
+    if home_stars or away_stars:
+        score_under += 1.0
+        out_names = (home_stars + away_stars)[:2]
+        reasons_under.append(f"🏥 {', '.join([n[:8] for n in out_names])} OUT")
+    
+    # 6. BLOWOUT RISK
+    home_net = home.get('net_rating', 0)
+    away_net = away.get('net_rating', 0)
+    net_diff = abs(home_net - away_net)
+    if net_diff > 10:
+        score_over += 0.75
+        reasons_over.append("💥 Blowout risk")
+    elif net_diff < 3:
+        score_under += 0.5
+        reasons_under.append("⚔️ Close game")
+    
+    # 7. ALTITUDE
+    if home_team == "Denver":
+        score_under += 0.75
+        reasons_under.append("🏔️ Denver altitude")
+    
+    # 8. FT RATE
+    home_ft = home.get('ft_rate', 0.25)
+    away_ft = away.get('ft_rate', 0.25)
+    avg_ft = (home_ft + away_ft) / 2
+    if avg_ft > 0.27:
+        score_under += 0.5
+        reasons_under.append("🎁 High FT rate")
+    elif avg_ft < 0.23:
+        score_over += 0.5
+        reasons_over.append("🏃 Low FT rate")
+    
+    # 9. REBOUND RATE
+    home_reb = home.get('reb_rate', 50)
+    away_reb = away.get('reb_rate', 50)
+    avg_reb = (home_reb + away_reb) / 2
+    if avg_reb > 51.5:
+        score_under += 0.5
+        reasons_under.append("🏀 Control boards")
+    
+    # 10. HOME SCORING
+    if home.get('home_win_pct', 0.5) > 0.65 and home_net > 5:
+        score_over += 0.5
+        reasons_over.append("🏠 Home scoring")
+    
+    # Normalize
+    total = score_under + score_over
+    if total > 0:
+        under_final = round((score_under / total) * 10, 1)
+        over_final = round((score_over / total) * 10, 1)
     else:
-        return "⚪ SKIP", "#888888"
+        under_final = 5.0
+        over_final = 5.0
+    
+    if under_final >= over_final:
+        pick = "NO"
+        score = under_final
+        reasons = reasons_under[:4]
+    else:
+        pick = "YES"
+        score = over_final
+        reasons = reasons_over[:4]
+    
+    return pick, score, reasons
+
+def get_totals_signal_tier(score, pick):
+    if score >= 8.0:
+        return f"🟢 STRONG {pick}", "#00ff00"
+    elif score >= 6.5:
+        return f"🔵 {pick}", "#00aaff"
+    elif score >= 5.5:
+        return f"🟡 LEAN {pick}", "#ffff00"
+    elif score >= 4.5:
+        return "⚪ TOSS-UP", "#888888"
+    else:
+        return "🔴 SKIP", "#ff0000"
 
 # ========== FETCH DATA ==========
 games = fetch_espn_scores()
 game_list = sorted(list(games.keys()))
 yesterday_teams = fetch_yesterday_teams()
+injuries = fetch_espn_injuries()
 now = datetime.now(pytz.timezone('US/Eastern'))
 
 # ========== HEADER ==========
 st.title("🎯 NBA EDGE FINDER")
 st.caption(f"TEST MODE | {auto_status} | Last update: {now.strftime('%I:%M:%S %p ET')}")
 
-# ========== LIVE SIGNALS SECTION ==========
-st.subheader("📡 LIVE SIGNALS")
-
-# Example thresholds for testing display
-EXAMPLE_THRESHOLDS = [225.5, 230.5, 235.5, 240.5]
+# ========== 🎯 BIG SNAPSHOT - ML PICKS ==========
+st.subheader("🎯 BIG SNAPSHOT - TODAY'S ML PICKS")
 
 if game_list:
-    live_games = []
-    upcoming_games = []
-    final_games = []
-    
+    all_picks = []
     for game_key in game_list:
-        g = games[game_key]
-        mins = get_minutes_played(g['period'], g['clock'], g['status_type'])
+        parts = game_key.split("@")
+        away_team = parts[0]
+        home_team = parts[1]
         
-        if g['status_type'] == "STATUS_FINAL":
-            final_games.append((game_key, g, mins))
-        elif mins >= 6:
-            live_games.append((game_key, g, mins))
-        else:
-            upcoming_games.append((game_key, g, mins))
+        pick, score, edge, reasons, home_out, away_out = calc_ml_score(home_team, away_team, yesterday_teams, injuries)
+        signal, color = get_signal_tier(score)
+        
+        all_picks.append({
+            'game': game_key, 'home': home_team, 'away': away_team,
+            'pick': pick, 'score': score, 'edge': edge,
+            'signal': signal, 'color': color, 'reasons': reasons
+        })
     
-    # ===== LIVE GAMES WITH SIGNALS =====
-    if live_games:
-        st.markdown("### 🔴 LIVE — Active Signals")
-        
-        for game_key, g, mins in live_games:
-            total = g['total']
-            pace = round(total / mins, 2) if mins > 0 else 0
-            proj = round(pace * 48) if mins > 0 else 0
-            
-            pace_label, pace_color = get_pace_label(pace)
-            trend = get_trend_label(pace)
-            
-            # Calculate signals for each threshold
-            signals_no = []
-            signals_yes = []
-            
-            for thresh in EXAMPLE_THRESHOLDS:
-                cushion_no = thresh - proj
-                cushion_yes = proj - thresh
-                
-                if cushion_no >= 5:
-                    sig, col = get_signal(mins, cushion_no, pace, "NO")
-                    if "SKIP" not in sig and "WAITING" not in sig:
-                        signals_no.append((thresh, cushion_no, sig, col))
-                
-                if cushion_yes >= 5:
-                    sig, col = get_signal(mins, cushion_yes, pace, "YES")
-                    if "SKIP" not in sig and "WAITING" not in sig:
-                        signals_yes.append((thresh, cushion_yes, sig, col))
-            
-            # Determine best signal
-            best_signal = "⚪ SKIP"
-            best_color = "#888888"
-            best_info = ""
-            
-            if signals_no:
-                best = max(signals_no, key=lambda x: x[1])
-                best_signal = best[2]
-                best_color = best[3]
-                best_info = f"@ {best[0]} (+{best[1]:.0f} cushion)"
-            elif signals_yes:
-                best = max(signals_yes, key=lambda x: x[1])
-                best_signal = best[2]
-                best_color = best[3]
-                best_info = f"@ {best[0]} (+{best[1]:.0f} cushion)"
-            
-            game_status = f"Q{g['period']} {g['clock']}"
-            
-            st.markdown(f"""
-            <div style='background:linear-gradient(135deg,#1a1a2e,#16213e);padding:15px;border-radius:10px;border:2px solid {best_color};margin-bottom:10px'>
-                <div style='display:flex;justify-content:space-between;align-items:center'>
-                    <div>
-                        <span style='color:#fff;font-size:1.2em;font-weight:bold'>{game_key.replace('@', ' @ ')}</span>
-                        <span style='color:#888;margin-left:10px'>{game_status}</span>
-                    </div>
-                    <span style='color:{best_color};font-size:1.3em;font-weight:bold'>{best_signal}</span>
-                </div>
-                <div style='margin-top:10px;display:flex;gap:20px;flex-wrap:wrap'>
-                    <span style='color:#aaa'>🏀 <b style="color:#fff">{total} pts</b> in {mins:.0f} min</span>
-                    <span style='color:#aaa'>⚡ <b style="color:{pace_color}">{pace}/min</b> {pace_label}</span>
-                    <span style='color:#aaa'>📊 Proj: <b style="color:#fff">{proj}</b></span>
-                    <span style='color:#aaa'>{trend}</span>
-                    <span style='color:#888;font-size:0.9em'>{best_info}</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+    all_picks.sort(key=lambda x: x['score'], reverse=True)
     
-    # ===== UPCOMING GAMES =====
-    if upcoming_games:
-        st.markdown("### ⏳ UPCOMING — Waiting for Data")
-        
-        for game_key, g, mins in upcoming_games:
-            b2b_away = g['away_team'] in yesterday_teams
-            b2b_home = g['home_team'] in yesterday_teams
-            
-            fatigue_note = ""
-            if b2b_away and not b2b_home:
-                fatigue_note = f"🔴 {g['away_team']} B2B"
-            elif b2b_home and not b2b_away:
-                fatigue_note = f"🔴 {g['home_team']} B2B"
-            elif b2b_away and b2b_home:
-                fatigue_note = "🔴 Both B2B"
-            
-            if mins > 0:
-                status = f"Q{g['period']} {g['clock']} — {g['total']} pts"
-            else:
-                status = "Not started"
-            
-            st.markdown(f"""
-            <div style='background:#1a1a2e;padding:12px;border-radius:8px;border:1px solid #444;margin-bottom:8px'>
-                <span style='color:#fff;font-weight:bold'>{game_key.replace('@', ' @ ')}</span>
-                <span style='color:#888;margin-left:15px'>{status}</span>
-                <span style='color:#ff8800;margin-left:15px'>{fatigue_note}</span>
-            </div>
-            """, unsafe_allow_html=True)
+    strong = [p for p in all_picks if p['score'] >= 8.0]
+    buys = [p for p in all_picks if 6.5 <= p['score'] < 8.0]
+    leans = [p for p in all_picks if 5.5 <= p['score'] < 6.5]
+    tossups = [p for p in all_picks if 4.5 <= p['score'] < 5.5]
+    skips = [p for p in all_picks if p['score'] < 4.5]
     
-    # ===== FINAL GAMES =====
-    if final_games:
-        st.markdown("### ✅ FINAL — Completed")
-        
-        for game_key, g, mins in final_games:
-            total = g['total']
-            pace = round(total / mins, 2) if mins > 0 else 0
-            pace_label, pace_color = get_pace_label(pace)
+    if strong:
+        st.markdown("### 🟢 STRONG")
+        for p in strong:
+            reasons_str = " • ".join(p['reasons']) if p['reasons'] else "Multiple factors"
+            is_home = p['pick'] == p['home']
+            opp = p['away'] if is_home else p['home']
+            tag = "🏠" if is_home else "✈️"
             
-            st.markdown(f"""
-            <div style='background:#0a0a15;padding:12px;border-radius:8px;border:1px solid #333;margin-bottom:8px'>
-                <span style='color:#888;font-weight:bold'>{game_key.replace('@', ' @ ')}</span>
-                <span style='color:#666;margin-left:15px'>FINAL: {total} pts</span>
-                <span style='color:{pace_color};margin-left:15px'>{pace}/min {pace_label}</span>
-            </div>
-            """, unsafe_allow_html=True)
-
+            col1, col2, col3 = st.columns([3, 2, 5])
+            col1.markdown(f"**<span style='color:#00ff00'>{p['pick']}</span>** {tag} vs {opp}", unsafe_allow_html=True)
+            col2.markdown(f"<span style='color:{p['color']};font-weight:bold'>{p['score']}/10 | +{p['edge']:.0f}%</span>", unsafe_allow_html=True)
+            col3.markdown(f"<span style='color:#aaa;font-size:0.9em'>{reasons_str}</span>", unsafe_allow_html=True)
+    
+    if buys:
+        st.markdown("### 🔵 SIGNAL")
+        for p in buys:
+            reasons_str = " • ".join(p['reasons']) if p['reasons'] else "Multiple factors"
+            is_home = p['pick'] == p['home']
+            opp = p['away'] if is_home else p['home']
+            tag = "🏠" if is_home else "✈️"
+            
+            col1, col2, col3 = st.columns([3, 2, 5])
+            col1.markdown(f"**<span style='color:#00aaff'>{p['pick']}</span>** {tag} vs {opp}", unsafe_allow_html=True)
+            col2.markdown(f"<span style='color:{p['color']};font-weight:bold'>{p['score']}/10 | +{p['edge']:.0f}%</span>", unsafe_allow_html=True)
+            col3.markdown(f"<span style='color:#aaa;font-size:0.9em'>{reasons_str}</span>", unsafe_allow_html=True)
+    
+    if leans:
+        st.markdown("### 🟡 LEAN")
+        for p in leans:
+            reasons_str = " • ".join(p['reasons'][:3]) if p['reasons'] else ""
+            is_home = p['pick'] == p['home']
+            opp = p['away'] if is_home else p['home']
+            tag = "🏠" if is_home else "✈️"
+            
+            col1, col2, col3 = st.columns([3, 2, 5])
+            col1.markdown(f"**<span style='color:#ffff00'>{p['pick']}</span>** {tag} vs {opp}", unsafe_allow_html=True)
+            col2.markdown(f"<span style='color:{p['color']}'>{p['score']}/10 | +{p['edge']:.0f}%</span>", unsafe_allow_html=True)
+            col3.markdown(f"<span style='color:#888;font-size:0.85em'>{reasons_str}</span>", unsafe_allow_html=True)
+    
+    if tossups:
+        st.markdown("### ⚪ TOSS-UP")
+        for p in tossups:
+            st.markdown(f"<span style='color:#888'>{p['away']}</span> ✈️ @ <span style='color:#888'>{p['home']}</span> 🏠 — <span style='color:{p['color']}'>{p['score']}/10</span> — No clear edge", unsafe_allow_html=True)
+    
+    if skips:
+        st.markdown("### 🔴 SKIP")
+        for p in skips:
+            st.markdown(f"~~{p['away']} @ {p['home']}~~ — <span style='color:{p['color']}'>{p['score']}/10</span>", unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.caption(f"📊 {len(strong)} Strong | {len(buys)} Signal | {len(leans)} Leans | {len(tossups)} Toss-ups | {len(skips)} Skips")
 else:
     st.info("No games scheduled today")
 
 st.divider()
 
-# ========== B2B INFO ==========
-if yesterday_teams:
-    st.info(f"📅 **Back-to-Back Teams Today:** {', '.join(sorted(yesterday_teams))}")
+# ========== 🎯 TOTALS BIG SNAPSHOT ==========
+st.subheader("🎯 TOTALS BIG SNAPSHOT - TODAY'S OVER/UNDER PICKS")
+
+if game_list:
+    all_totals = []
+    for game_key in game_list:
+        parts = game_key.split("@")
+        away_team = parts[0]
+        home_team = parts[1]
+        
+        pick, score, reasons = calc_totals_score(home_team, away_team, yesterday_teams, injuries)
+        signal, color = get_totals_signal_tier(score, pick)
+        
+        all_totals.append({
+            'game': game_key, 'home': home_team, 'away': away_team,
+            'pick': pick, 'score': score, 'signal': signal, 'color': color, 'reasons': reasons
+        })
+    
+    all_totals.sort(key=lambda x: x['score'], reverse=True)
+    
+    strong_no = [p for p in all_totals if p['score'] >= 8.0 and p['pick'] == "NO"]
+    strong_yes = [p for p in all_totals if p['score'] >= 8.0 and p['pick'] == "YES"]
+    reg_no = [p for p in all_totals if 6.5 <= p['score'] < 8.0 and p['pick'] == "NO"]
+    reg_yes = [p for p in all_totals if 6.5 <= p['score'] < 8.0 and p['pick'] == "YES"]
+    lean_no = [p for p in all_totals if 5.5 <= p['score'] < 6.5 and p['pick'] == "NO"]
+    lean_yes = [p for p in all_totals if 5.5 <= p['score'] < 6.5 and p['pick'] == "YES"]
+    tossups_t = [p for p in all_totals if 4.5 <= p['score'] < 5.5]
+    skips_t = [p for p in all_totals if p['score'] < 4.5]
+    
+    if strong_no:
+        st.markdown("### 🟢 STRONG NO (Under)")
+        for p in strong_no:
+            reasons_str = " • ".join(p['reasons']) if p['reasons'] else "Multiple factors"
+            col1, col2, col3 = st.columns([3, 2, 5])
+            col1.markdown(f"**{p['away']}** @ **{p['home']}**")
+            col2.markdown(f"<span style='color:{p['color']};font-weight:bold'>{p['score']}/10</span>", unsafe_allow_html=True)
+            col3.markdown(f"<span style='color:#aaa;font-size:0.9em'>{reasons_str}</span>", unsafe_allow_html=True)
+    
+    if strong_yes:
+        st.markdown("### 🟢 STRONG YES (Over)")
+        for p in strong_yes:
+            reasons_str = " • ".join(p['reasons']) if p['reasons'] else "Multiple factors"
+            col1, col2, col3 = st.columns([3, 2, 5])
+            col1.markdown(f"**{p['away']}** @ **{p['home']}**")
+            col2.markdown(f"<span style='color:{p['color']};font-weight:bold'>{p['score']}/10</span>", unsafe_allow_html=True)
+            col3.markdown(f"<span style='color:#aaa;font-size:0.9em'>{reasons_str}</span>", unsafe_allow_html=True)
+    
+    if reg_no:
+        st.markdown("### 🔵 NO (Under)")
+        for p in reg_no:
+            reasons_str = " • ".join(p['reasons']) if p['reasons'] else "Multiple factors"
+            col1, col2, col3 = st.columns([3, 2, 5])
+            col1.markdown(f"**{p['away']}** @ **{p['home']}**")
+            col2.markdown(f"<span style='color:{p['color']};font-weight:bold'>{p['score']}/10</span>", unsafe_allow_html=True)
+            col3.markdown(f"<span style='color:#aaa;font-size:0.9em'>{reasons_str}</span>", unsafe_allow_html=True)
+    
+    if reg_yes:
+        st.markdown("### 🔵 YES (Over)")
+        for p in reg_yes:
+            reasons_str = " • ".join(p['reasons']) if p['reasons'] else "Multiple factors"
+            col1, col2, col3 = st.columns([3, 2, 5])
+            col1.markdown(f"**{p['away']}** @ **{p['home']}**")
+            col2.markdown(f"<span style='color:{p['color']};font-weight:bold'>{p['score']}/10</span>", unsafe_allow_html=True)
+            col3.markdown(f"<span style='color:#aaa;font-size:0.9em'>{reasons_str}</span>", unsafe_allow_html=True)
+    
+    if lean_no:
+        st.markdown("### 🟡 LEAN NO (Under)")
+        for p in lean_no:
+            reasons_str = " • ".join(p['reasons'][:3]) if p['reasons'] else ""
+            col1, col2, col3 = st.columns([3, 2, 5])
+            col1.markdown(f"{p['away']} @ {p['home']}")
+            col2.markdown(f"<span style='color:{p['color']}'>{p['score']}/10</span>", unsafe_allow_html=True)
+            col3.markdown(f"<span style='color:#888;font-size:0.85em'>{reasons_str}</span>", unsafe_allow_html=True)
+    
+    if lean_yes:
+        st.markdown("### 🟡 LEAN YES (Over)")
+        for p in lean_yes:
+            reasons_str = " • ".join(p['reasons'][:3]) if p['reasons'] else ""
+            col1, col2, col3 = st.columns([3, 2, 5])
+            col1.markdown(f"{p['away']} @ {p['home']}")
+            col2.markdown(f"<span style='color:{p['color']}'>{p['score']}/10</span>", unsafe_allow_html=True)
+            col3.markdown(f"<span style='color:#888;font-size:0.85em'>{reasons_str}</span>", unsafe_allow_html=True)
+    
+    if tossups_t:
+        st.markdown("### ⚪ TOSS-UP")
+        for p in tossups_t:
+            st.markdown(f"{p['away']} @ {p['home']} — <span style='color:{p['color']}'>{p['score']}/10</span> — No clear edge", unsafe_allow_html=True)
+    
+    if skips_t:
+        st.markdown("### 🔴 SKIP")
+        for p in skips_t:
+            st.markdown(f"~~{p['away']} @ {p['home']}~~ — <span style='color:{p['color']}'>{p['score']}/10</span>", unsafe_allow_html=True)
+    
+    st.markdown("---")
+    total_no = len(strong_no) + len(reg_no) + len(lean_no)
+    total_yes = len(strong_yes) + len(reg_yes) + len(lean_yes)
+    st.caption(f"📊 {len(strong_no)+len(strong_yes)} Strong | {len(reg_no)+len(reg_yes)} Signal | {len(lean_no)+len(lean_yes)} Leans | NO: {total_no} | YES: {total_yes}")
+else:
+    st.info("No games scheduled today")
 
 st.divider()
 
-# ========== CUSHION SCANNER ==========
-st.subheader("🎯 CUSHION SCANNER")
-
-cs1, cs2 = st.columns([1, 1])
-cush_min = cs1.selectbox("Min minutes played", [6, 9, 12, 18, 24], index=1)
-cush_side = cs2.selectbox("Signal side", ["NO (Under)", "YES (Over)"])
-side_clean = "NO" if "NO" in cush_side else "YES"
-
-thresholds = [225.5, 230.5, 235.5, 240.5, 245.5]
-cush_data = []
-
-for gk, g in games.items():
-    mins = get_minutes_played(g['period'], g['clock'], g['status_type'])
-    if mins >= cush_min and g['status_type'] != "STATUS_FINAL":
-        pace = g['total'] / mins if mins > 0 else 0
-        proj = round(pace * 48) if mins > 0 else 0
-        cush_data.append({"game": gk, "proj": proj, "pace": pace, "mins": mins})
-
-if cush_data:
-    # Header row
-    hcols = st.columns([2, 1, 1] + [1]*len(thresholds))
-    hcols[0].markdown("**Game**")
-    hcols[1].markdown("**Proj**")
-    hcols[2].markdown("**Pace**")
-    for i, t in enumerate(thresholds):
-        hcols[i+3].markdown(f"**{t}**")
-    
-    for cd in sorted(cush_data, key=lambda x: x['proj'], reverse=(side_clean=="YES")):
-        pace_label, pace_color = get_pace_label(cd['pace'])
-        
-        rcols = st.columns([2, 1, 1] + [1]*len(thresholds))
-        rcols[0].write(cd['game'].replace("@", " @ "))
-        rcols[1].write(f"{cd['proj']}")
-        rcols[2].markdown(f"<span style='color:{pace_color}'>{cd['pace']:.1f}</span>", unsafe_allow_html=True)
-        
-        for i, t in enumerate(thresholds):
-            if side_clean == "NO":
-                c = t - cd['proj']
-            else:
-                c = cd['proj'] - t
-            
-            if c >= 20:
-                rcols[i+3].markdown(f"<span style='color:#00ff00'>**+{c:.0f}** 🟢</span>", unsafe_allow_html=True)
-            elif c >= 10:
-                rcols[i+3].markdown(f"<span style='color:#ffff00'>**+{c:.0f}** 🟡</span>", unsafe_allow_html=True)
-            elif c >= 5:
-                rcols[i+3].markdown(f"<span style='color:#ff8800'>+{c:.0f} 🟠</span>", unsafe_allow_html=True)
-            else:
-                rcols[i+3].markdown(f"<span style='color:#666'>—</span>", unsafe_allow_html=True)
-else:
-    st.info(f"No live games with {cush_min}+ minutes played")
+if yesterday_teams:
+    st.info(f"📅 **B2B Teams Today:** {', '.join(sorted(yesterday_teams))}")
 
 st.divider()
 
@@ -521,45 +804,36 @@ for gk, g in games.items():
     if mins >= 6:
         pace = round(g['total'] / mins, 2)
         proj = round(pace * 48)
-        pace_data.append({
-            "game": gk, "pace": pace, "proj": proj, 
-            "total": g['total'], "mins": mins,
-            "period": g['period'], "clock": g['clock'], 
-            "final": g['status_type'] == "STATUS_FINAL"
-        })
+        pace_data.append({"game": gk, "pace": pace, "proj": proj, "total": g['total'], "mins": mins,
+                         "period": g['period'], "clock": g['clock'], "final": g['status_type'] == "STATUS_FINAL"})
 
 pace_data.sort(key=lambda x: x['pace'])
 
 if pace_data:
     for p in pace_data:
-        lbl, clr = get_pace_label(p['pace'])
-        trend = get_trend_label(p['pace'])
+        if p['pace'] < 4.5:
+            lbl, clr = "🟢 SLOW", "#00ff00"
+        elif p['pace'] < 4.8:
+            lbl, clr = "🟡 AVG", "#ffff00"
+        elif p['pace'] < 5.2:
+            lbl, clr = "🟠 FAST", "#ff8800"
+        else:
+            lbl, clr = "🔴 SHOOTOUT", "#ff0000"
         status = "FINAL" if p['final'] else f"Q{p['period']} {p['clock']}"
-        
-        st.markdown(f"""
-        <div style='background:#1a1a2e;padding:10px;border-radius:8px;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center'>
-            <span style='color:#fff'><b>{p['game'].replace('@', ' @ ')}</b></span>
-            <span style='color:#aaa'>{p['total']} pts in {p['mins']:.0f} min</span>
-            <span style='color:{clr};font-weight:bold'>{p['pace']}/min {lbl}</span>
-            <span style='color:#888'>{trend}</span>
-            <span style='color:#fff'>Proj: <b>{p['proj']}</b></span>
-            <span style='color:#666'>{status}</span>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"**{p['game'].replace('@', ' @ ')}** — {p['total']} pts in {p['mins']:.0f} min — **{p['pace']}/min** <span style='color:{clr}'>**{lbl}**</span> — Proj: **{p['proj']}** — {status}", unsafe_allow_html=True)
 else:
     st.info("No games with 6+ minutes played yet")
 
 st.divider()
 
-# ========== ALL GAMES SCOREBOARD ==========
+# ========== ALL GAMES ==========
 st.subheader("📺 ALL GAMES")
-
 if games:
     cols = st.columns(4)
     for i, (k, g) in enumerate(games.items()):
         with cols[i % 4]:
-            st.markdown(f"**{g['away_team']}** {g['away_score']}")
-            st.markdown(f"**{g['home_team']}** {g['home_score']}")
+            st.write(f"**{g['away_team']}** {g['away_score']}")
+            st.write(f"**{g['home_team']}** {g['home_score']}")
             status = "FINAL" if g['status_type'] == "STATUS_FINAL" else f"Q{g['period']} {g['clock']}"
             st.caption(f"{status} | {g['total']} pts")
 else:
@@ -571,8 +845,62 @@ st.divider()
 st.markdown("""
 <div style='background:#1a1a2e;padding:15px;border-radius:10px;text-align:center;margin-top:20px'>
     <span style='color:#ff6600;font-weight:bold'>⚠️ TEST MODE — For testing and research purposes only.</span><br>
-    <span style='color:#888;font-size:0.9em'>Signals are for educational demonstration. Not financial advice. No trading functionality.</span>
+    <span style='color:#888;font-size:0.9em'>Signals are for educational demonstration. Not financial advice.</span>
 </div>
 """, unsafe_allow_html=True)
+
+st.divider()
+
+# ========== FEEDBACK SECTION ==========
+st.subheader("💬 TESTER FEEDBACK")
+
+st.markdown("""
+<div style='background:#1a1a2e;padding:15px;border-radius:10px;margin-bottom:15px'>
+    <span style='color:#00aaff;font-weight:bold'>Help improve this app!</span><br>
+    <span style='color:#aaa'>Share bugs, suggestions, or questions below.</span>
+</div>
+""", unsafe_allow_html=True)
+
+feedback_type = st.selectbox(
+    "Category",
+    ["🐛 Bug Report", "💡 Suggestion", "❓ Question", "🎯 Signal Feedback", "📝 Other"],
+    key="feedback_type"
+)
+
+feedback_text = st.text_area(
+    "Your feedback",
+    placeholder="Describe the issue, suggestion, or question...",
+    height=120,
+    key="feedback_text"
+)
+
+feedback_name = st.text_input("Name (optional)", placeholder="Your name", key="feedback_name")
+
+if st.button("📋 Copy Feedback to Clipboard", use_container_width=True):
+    if feedback_text:
+        clipboard_text = f"""
+NBA EDGE FINDER - TESTER FEEDBACK
+---------------------------------
+Category: {feedback_type}
+From: {feedback_name if feedback_name else 'Anonymous'}
+Date: {now.strftime('%Y-%m-%d %I:%M %p ET')}
+
+{feedback_text}
+---------------------------------
+        """.strip()
+        st.code(clipboard_text, language=None)
+        st.success("👆 Copy the text above and send via email!")
+    else:
+        st.warning("Please enter your feedback first")
+
+if feedback_text:
+    import urllib.parse
+    subject = urllib.parse.quote(f"NBA Edge Finder Feedback: {feedback_type}")
+    body = urllib.parse.quote(f"Category: {feedback_type}\nFrom: {feedback_name if feedback_name else 'Anonymous'}\n\n{feedback_text}")
+    st.markdown(f"""
+    <a href="mailto:aipublishingpro@gmail.com?subject={subject}&body={body}" style='display:inline-block;background:#00aa00;color:white;padding:10px 20px;border-radius:5px;text-decoration:none;margin-top:10px'>
+        📧 Send Feedback via Email
+    </a>
+    """, unsafe_allow_html=True)
 
 st.caption("TESTER v1.0")
