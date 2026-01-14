@@ -141,6 +141,17 @@ with st.sidebar:
     
     st.divider()
     
+    st.subheader("📈 Position Status")
+    st.markdown("""
+    🟢 **VERY SAFE** → +15 cushion  
+    🟢 **LOOKING GOOD** → +8 to +15  
+    🟡 **ON TRACK** → +3 to +8  
+    🟠 **WARNING** → -3 to +3  
+    🔴 **AT RISK** → Under -3
+    """)
+    
+    st.divider()
+    
     st.subheader("🔥 Pace Labels")
     st.markdown("""
     🟢 **SLOW** → Under-friendly  
@@ -607,9 +618,19 @@ def get_totals_signal_tier(score, pick):
 # ========== FETCH DATA ==========
 games = fetch_espn_scores()
 game_list = sorted(list(games.keys()))
-yesterday_teams = fetch_yesterday_teams()
+yesterday_teams_raw = fetch_yesterday_teams()  # All teams that played yesterday
 injuries = fetch_espn_injuries()
 now = datetime.now(pytz.timezone('US/Eastern'))
+
+# Get teams playing TODAY
+today_teams = set()
+for game_key in games.keys():
+    parts = game_key.split("@")
+    today_teams.add(parts[0])  # away team
+    today_teams.add(parts[1])  # home team
+
+# TRUE B2B = played yesterday AND playing today
+yesterday_teams = yesterday_teams_raw.intersection(today_teams)
 
 # ========== HEADER ==========
 st.title("🎯 NBA EDGE FINDER")
@@ -792,7 +813,9 @@ else:
 st.divider()
 
 if yesterday_teams:
-    st.info(f"📅 **B2B Teams Today:** {', '.join(sorted(yesterday_teams))}")
+    st.info(f"📅 **TRUE B2B Teams Today** (played yesterday + playing today): {', '.join(sorted(yesterday_teams))}")
+else:
+    st.info("📅 **No B2B teams today** — all teams are rested")
 
 # ========== 🔥 TOP PICKS - BLOWOUT RISK ==========
 st.subheader("🔥 TOP PICKS - BLOWOUT RISK (Tired Away @ Fresh Home)")
