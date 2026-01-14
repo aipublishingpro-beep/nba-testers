@@ -1149,8 +1149,8 @@ st.divider()
 st.subheader("🎯 CUSHION SCANNER")
 
 cs1, cs2 = st.columns([1, 1])
-cush_min = cs1.selectbox("Min minutes", [6, 9, 12, 18, 24], index=1, key="cush_min")
-cush_side = cs2.selectbox("Side", ["NO", "YES"], key="cush_side")
+cush_min = cs1.selectbox("Min minutes", [6, 9, 12, 18, 24], index=1, key="cush_min_select")
+cush_side = cs2.selectbox("Side", ["NO", "YES"], key="cush_side_select")
 
 thresholds = [225.5, 230.5, 235.5, 240.5, 245.5]
 cush_data = []
