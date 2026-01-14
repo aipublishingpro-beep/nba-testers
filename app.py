@@ -98,6 +98,68 @@ with st.sidebar:
     st.divider()
     st.caption("TESTER v1.0")
 
+st.divider()
+
+# ========== FEEDBACK SECTION ==========
+st.subheader("💬 TESTER FEEDBACK")
+
+st.markdown("""
+<div style='background:#1a1a2e;padding:15px;border-radius:10px;margin-bottom:15px'>
+    <span style='color:#00aaff;font-weight:bold'>Help improve this app!</span><br>
+    <span style='color:#aaa'>Share bugs, suggestions, or questions below.</span>
+</div>
+""", unsafe_allow_html=True)
+
+fb_col1, fb_col2 = st.columns([1, 2])
+
+feedback_type = fb_col1.selectbox(
+    "Category",
+    ["🐛 Bug Report", "💡 Suggestion", "❓ Question", "🎯 Signal Feedback", "📝 Other"],
+    key="feedback_type"
+)
+
+feedback_text = st.text_area(
+    "Your feedback",
+    placeholder="Describe the issue, suggestion, or question...",
+    height=120,
+    key="feedback_text"
+)
+
+# Optional contact
+feedback_name = st.text_input("Name (optional)", placeholder="Your name", key="feedback_name")
+
+if st.button("📋 Copy Feedback to Clipboard", use_container_width=True):
+    if feedback_text:
+        clipboard_text = f"""
+NBA EDGE FINDER - TESTER FEEDBACK
+---------------------------------
+Category: {feedback_type}
+From: {feedback_name if feedback_name else 'Anonymous'}
+Date: {now.strftime('%Y-%m-%d %I:%M %p ET')}
+
+{feedback_text}
+---------------------------------
+        """.strip()
+        
+        st.code(clipboard_text, language=None)
+        st.success("👆 Copy the text above and send via email or Discord!")
+    else:
+        st.warning("Please enter your feedback first")
+
+# Alternative: Direct email link
+if feedback_text:
+    import urllib.parse
+    subject = urllib.parse.quote(f"NBA Edge Finder Feedback: {feedback_type}")
+    body = urllib.parse.quote(f"Category: {feedback_type}\nFrom: {feedback_name if feedback_name else 'Anonymous'}\n\n{feedback_text}")
+    
+    st.markdown(f"""
+    <a href="mailto:aipublishingpro@gmail.com?subject={subject}&body={body}" style='display:inline-block;background:#00aa00;color:white;padding:10px 20px;border-radius:5px;text-decoration:none;margin-top:10px'>
+        📧 Open in Email App
+    </a>
+    """, unsafe_allow_html=True)
+
+st.caption("Your feedback helps make the app better!")
+
 # ========== DATA FUNCTIONS ==========
 def fetch_espn_scores():
     url = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
