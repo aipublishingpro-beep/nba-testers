@@ -804,11 +804,11 @@ for gk, g in games.items():
     if trend_label:
         mins = get_minutes_played(g['period'], g['clock'], g['status_type'])
         proj = round((g['total'] / mins) * 48) if mins > 0 else 0
-        trend_data.append({'game': gk, 'label': trend_label, 'color': trend_color, 'diff': trend_diff, 'total': g['total'], 'proj': proj, 'mins': mins, 'period': g['period'], 'clock': g['clock']})
+        trend_data.append({'game': gk, 'label': trend_label, 'color': trend_color, 'diff': trend_diff, 'total': g['total'], 'proj': proj, 'mins': mins, 'period': g['period'], 'clock': g['clock'], 'final': g['status_type'] == "STATUS_FINAL"})
 trend_data.sort(key=lambda x: x['diff'], reverse=True)
 if trend_data:
     for t in trend_data:
-        game_status = f"Q{t['period']} {t['clock']}"
+        game_status = 'FINAL' if t['final'] else f"Q{t['period']} {t['clock']}"
         st.markdown(f"**{t['game'].replace('@', ' @ ')}** — <span style='color:{t['color']}'><b>{t['label']}</b></span> — Score: {t['total']} | Proj: {t['proj']} | Diff: <b>{t['diff']:+.0f}</b> vs expected — {game_status}", unsafe_allow_html=True)
 else:
     st.info("No games with 6+ minutes played")
