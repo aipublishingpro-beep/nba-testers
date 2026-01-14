@@ -161,7 +161,7 @@ with st.sidebar:
     """)
     
     st.divider()
-    st.caption("TESTER v1.2")
+    st.caption("TESTER v1.3")
 
 # ========== HELPER FUNCTIONS ==========
 def calc_distance(loc1, loc2):
@@ -893,7 +893,6 @@ st.subheader("➕ ADD NEW POSITION")
 game_options = ["Select a game..."] + [gk.replace("@", " @ ") for gk in game_list]
 selected_game = st.selectbox("🏀 Game", game_options, key="game_select")
 
-# Show Kalshi link if game selected
 if selected_game != "Select a game...":
     parts = selected_game.replace(" @ ", "@").split("@")
     away_t = parts[0]
@@ -902,13 +901,11 @@ if selected_game != "Select a game...":
     col_ml.link_button(f"🔗 ML on Kalshi", build_kalshi_ml_url(away_t, home_t), use_container_width=True)
     col_tot.link_button(f"🔗 Totals on Kalshi", build_kalshi_totals_url(away_t, home_t), use_container_width=True)
 
-# FIXED: All inputs inside form, with proper conditional handling
 with st.form("add_position_form"):
     market_type = st.radio("📈 Market Type", ["Moneyline (Winner)", "Totals (Over/Under)"], horizontal=True)
     
     p1, p2, p3 = st.columns(3)
     
-    # Build side options based on game selection
     if selected_game != "Select a game...":
         parts = selected_game.replace(" @ ", "@").split("@")
         ml_options = [f"{parts[1]} (Home)", f"{parts[0]} (Away)"]
@@ -917,7 +914,6 @@ with st.form("add_position_form"):
     
     totals_options = ["NO (Under)", "YES (Over)"]
     
-    # Show appropriate selector based on market type
     if market_type == "Moneyline (Winner)":
         side = p1.selectbox("📊 Pick Winner", ml_options)
     else:
@@ -926,7 +922,6 @@ with st.form("add_position_form"):
     price_paid = p2.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1)
     contracts = p3.number_input("📄 Contracts", min_value=1, max_value=1000, value=10, step=1)
     
-    # Threshold only for totals - always defined but only used for totals
     threshold_select = st.number_input("🎯 Threshold (Totals only)", min_value=180.0, max_value=280.0, value=225.5, step=3.0, 
                                        disabled=(market_type == "Moneyline (Winner)"))
     
@@ -1149,120 +1144,6 @@ st.divider()
 st.subheader("🎯 CUSHION SCANNER")
 
 cs1, cs2 = st.columns([1, 1])
-cush_min = cs1.selectbox("Min minutes", [6, 9, 12, 18, 24], index=1, key="cush_min_select")
-cush_side = cs2.selectbox("Side", ["NO", "YES"], key="cush_side_select")
-
-thresholds = [225.5, 230.5, 235.5, 240.5, 245.5]
-cush_data = []
-
-for gk, g in games.items():
-    mins = get_minutes_played(g['period'], g['clock'], g['status_type'])
-    if mins >= cush_min:
-        proj = round((g['total'] / mins) * 48) if mins > 0 else 0
-        cush_data.append({"game": gk, "proj": proj})
-
-if cush_data:
-    good_games = []
-    for cd in cush_data:
-        has_edge = False
-        for t in thresholds:
-            c = (t - cd['proj']) if cush_side == "NO" else (cd['proj'] - t)
-            if c >= 10:
-                has_edge = True
-                break
-        if has_edge:
-            gk = cd['game']
-            g = games.get(gk, {})
-            away_team = g.get('away_team', '')
-            home_team = g.get('home_team', '')
-            
-            away_b2b = away_team in yesterday_teams
-            home_b2b = home_team in yesterday_teams
-            
-            fatigue_score = 0
-            if away_b2b:
-                fatigue_score += 2
-            if home_b2b and away_b2b:
-                fatigue_score += 1
-            if home_team == "Denver":
-                fatigue_score += 1
-            if away_b2b and not home_b2b and cush_side == "NO":
-                fatigue_score -= 2
-            
-            mins = get_minutes_played(g.get('period', 0), g.get('clock', ''), g.get('status_type', ''))
-            pace_score = 0
-            pace_val = 0
-            pace_label = ""
-            if mins >= 6:
-                pace_val = g.get('total', 0) / mins
-                if pace_val < 4.5:
-                    pace_score = 2 if cush_side == "NO" else -1
-                    pace_label = "🟢 SLOW"
-                elif pace_val < 4.8:
-                    pace_score = 1 if cush_side == "NO" else 0
-                    pace_label = "🟡 AVG"
-                elif pace_val < 5.2:
-                    pace_score = 0 if cush_side == "NO" else 1
-                    pace_label = "🟠 FAST"
-                else:
-                    pace_score = -1 if cush_side == "NO" else 2
-                    pace_label = "🔴 SHOT"
-            
-            mid_cushion = (235.5 - cd['proj']) if cush_side == "NO" else (cd['proj'] - 235.5)
-            cushion_score = 3 if mid_cushion >= 20 else (2 if mid_cushion >= 10 else (1 if mid_cushion >= 5 else 0))
-            
-            total_score = max(0, min(10, fatigue_score + pace_score + cushion_score))
-            cd['edge_score'] = total_score
-            cd['pace_val'] = pace_val
-            cd['pace_label'] = pace_label
-            cd['mins'] = mins
-            good_games.append(cd)
-    
-    if good_games:
-        hcols = st.columns([2, 1] + [1]*len(thresholds) + [1, 1])
-        hcols[0].markdown("**Game**")
-        hcols[1].markdown("**Proj**")
-        for i, t in enumerate(thresholds):
-            hcols[i+2].markdown(f"**{t}**")
-        hcols[-2].markdown("**Pace**")
-        hcols[-1].markdown("**Score**")
-        
-        for cd in good_games:
-            rcols = st.columns([2, 1] + [1]*len(thresholds) + [1, 1])
-            rcols[0].write(cd['game'].replace("@", " @ "))
-            rcols[1].write(f"{cd['proj']}")
-            for i, t in enumerate(thresholds):
-                c = (t - cd['proj']) if cush_side == "NO" else (cd['proj'] - t)
-                if c >= 20:
-                    rcols[i+2].markdown(f"<span style='color:#00ff00'>**+{c:.0f}** 🟢</span>", unsafe_allow_html=True)
-                elif c >= 10:
-                    rcols[i+2].markdown(f"<span style='color:#ffff00'>**+{c:.0f}** 🟡</span>", unsafe_allow_html=True)
-                else:
-                    rcols[i+2].markdown(f"<span style='color:#666'>—</span>", unsafe_allow_html=True)
-            
-            if cd['pace_label']:
-                rcols[-2].markdown(f"<span style='font-size:0.85em'>{cd['pace_label']}<br>{cd['pace_val']:.1f}/m</span>", unsafe_allow_html=True)
-            else:
-                rcols[-2].markdown("—")
-            
-            score = cd['edge_score']
-            if score >= 8:
-                rcols[-1].markdown(f"<span style='color:#00ff00;font-weight:bold'>**{score}/10** 🟢</span>", unsafe_allow_html=True)
-            elif score >= 6:
-                rcols[-1].markdown(f"<span style='color:#ffff00;font-weight:bold'>**{score}/10** 🟡</span>", unsafe_allow_html=True)
-            else:
-                rcols[-1].markdown(f"<span style='color:#ff0000'>{score}/10 🔴</span>", unsafe_allow_html=True)
-    else:
-        st.info("⚪ No games with +10 or more cushion right now")
-else:
-    st.info(f"No games with {cush_min}+ minutes played yet")
-
-st.divider()
-
-# ========== CUSHION SCANNER ==========
-st.subheader("🎯 CUSHION SCANNER")
-
-cs1, cs2 = st.columns([1, 1])
 cush_min = cs1.selectbox("Min minutes", [6, 9, 12, 18, 24], index=1, key="cush_min")
 cush_side = cs2.selectbox("Side", ["NO", "YES"], key="cush_side")
 
@@ -1430,4 +1311,4 @@ st.markdown("""
 st.divider()
 
 st.caption("💬 Have suggestions or found a bug? DM me.")
-st.caption("TESTER v1.2")
+st.caption("TESTER v1.3")
