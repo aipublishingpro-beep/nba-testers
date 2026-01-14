@@ -121,6 +121,15 @@ with st.sidebar:
     
     st.divider()
     
+    st.subheader("🔥 BLOWOUT RISK")
+    st.markdown("""
+    **Tired Away @ Fresh Home**  
+    Away team B2B + Home rested  
+    = HIGH CONFIDENCE pick
+    """)
+    
+    st.divider()
+    
     st.subheader("📊 Totals Tiers")
     st.markdown("""
     🟢 **STRONG** → 8.0+ score  
@@ -141,7 +150,7 @@ with st.sidebar:
     """)
     
     st.divider()
-    st.caption("TESTER v1.0")
+    st.caption("TESTER v1.1")
 
 # ========== HELPER FUNCTIONS ==========
 def calc_distance(loc1, loc2):
@@ -263,8 +272,42 @@ def get_minutes_played(period, clock, status_type):
     except:
         return (period - 1) * 12 if period <= 4 else 48 + (period - 5) * 5
 
+def calc_12_factor_edge(home_team, away_team, home_rest, away_rest, home_inj, away_inj, kalshi_price):
+    """Calculate 12-factor edge for blowout risk games"""
+    home = TEAM_STATS.get(home_team, {"pace": 100, "def_rank": 15, "net_rating": 0, "ft_rate": 0.25, "reb_rate": 50, "three_pct": 36, "home_win_pct": 0.5, "away_win_pct": 0.5, "division": ""})
+    away = TEAM_STATS.get(away_team, {"pace": 100, "def_rank": 15, "net_rating": 0, "ft_rate": 0.25, "reb_rate": 50, "three_pct": 36, "home_win_pct": 0.5, "away_win_pct": 0.5, "division": ""})
+    home_loc = TEAM_LOCATIONS.get(home_team, (0, 0))
+    away_loc = TEAM_LOCATIONS.get(away_team, (0, 0))
+    travel_miles = calc_distance(away_loc, home_loc)
+    
+    rest_diff = home_rest - away_rest
+    rest_score = max(-6, min(6, rest_diff * 2))
+    def_score = (away['def_rank'] - home['def_rank']) * 0.15
+    injury_score = (away_inj - home_inj) * 1.5
+    pace_diff = home['pace'] - away['pace']
+    pace_score = pace_diff * 0.1 if home['net_rating'] > away['net_rating'] else -pace_diff * 0.1
+    net_score = (home['net_rating'] - away['net_rating']) * 0.8
+    travel_score = 2.5 if travel_miles > 1500 else (1.5 if travel_miles > 1000 else (0.75 if travel_miles > 500 else 0))
+    split_score = (home['home_win_pct'] - 0.5) * 10 + (0.5 - away['away_win_pct']) * 10
+    h2h_score = 1.5 if home.get('division') == away.get('division') and home.get('division') else 0
+    altitude_score = 2.0 if home_team == "Denver" else 0
+    ft_score = (home.get('ft_rate', 0.25) - away.get('ft_rate', 0.25)) * 20
+    reb_score = (home.get('reb_rate', 50) - away.get('reb_rate', 50)) * 0.3
+    three_score = (home.get('three_pct', 36) - away.get('three_pct', 36)) * 0.5
+    home_court = 3.0
+    
+    weighted_spread = home_court + rest_score + def_score + injury_score + pace_score + net_score + travel_score + split_score + h2h_score + altitude_score + ft_score + reb_score + three_score
+    home_win_prob = max(5, min(95, 50 + weighted_spread * 2.5))
+    edge = home_win_prob - kalshi_price
+    
+    return {
+        'home_win_prob': round(home_win_prob, 1),
+        'kalshi_price': kalshi_price,
+        'edge': round(edge, 1),
+        'expected_spread': round(weighted_spread, 1)
+    }
+
 def calc_ml_score(home_team, away_team, yesterday_teams, injuries):
-    """Calculate 10-factor ML score. Returns (pick, score, edge, reasons, home_stars, away_stars)"""
     home = TEAM_STATS.get(home_team, {})
     away = TEAM_STATS.get(away_team, {})
     home_loc = TEAM_LOCATIONS.get(home_team, (0, 0))
@@ -275,7 +318,6 @@ def calc_ml_score(home_team, away_team, yesterday_teams, injuries):
     reasons_home = []
     reasons_away = []
     
-    # 1. REST ADVANTAGE
     home_b2b = home_team in yesterday_teams
     away_b2b = away_team in yesterday_teams
     if away_b2b and not home_b2b:
@@ -288,7 +330,6 @@ def calc_ml_score(home_team, away_team, yesterday_teams, injuries):
         score_home += 0.5
         score_away += 0.5
     
-    # 2. NET RATING
     home_net = home.get('net_rating', 0)
     away_net = away.get('net_rating', 0)
     net_diff = home_net - away_net
@@ -309,7 +350,6 @@ def calc_ml_score(home_team, away_team, yesterday_teams, injuries):
         score_away += 1.0
         reasons_away.append(f"📊 Net +{away_net:.1f}")
     
-    # 3. DEFENSE RANK
     home_def = home.get('def_rank', 15)
     away_def = away.get('def_rank', 15)
     if home_def <= 5:
@@ -329,10 +369,8 @@ def calc_ml_score(home_team, away_team, yesterday_teams, injuries):
     elif away_def <= 15:
         score_away += 0.4
     
-    # 4. HOME COURT
     score_home += 1.0
     
-    # 5. INJURY IMPACT
     home_inj, home_stars = get_injury_score(home_team, injuries)
     away_inj, away_stars = get_injury_score(away_team, injuries)
     inj_diff = away_inj - home_inj
@@ -356,7 +394,6 @@ def calc_ml_score(home_team, away_team, yesterday_teams, injuries):
         score_home += 0.3
         score_away += 0.3
     
-    # 6. TRAVEL FATIGUE
     travel_miles = calc_distance(away_loc, home_loc)
     if travel_miles > 2000:
         score_home += 1.0
@@ -369,7 +406,6 @@ def calc_ml_score(home_team, away_team, yesterday_teams, injuries):
     elif travel_miles > 500:
         score_home += 0.3
     
-    # 7. HOME/AWAY SPLITS
     home_hw = home.get('home_win_pct', 0.5)
     away_aw = away.get('away_win_pct', 0.5)
     reasons_home.append(f"🏠 {int(home_hw*100)}% home")
@@ -384,17 +420,14 @@ def calc_ml_score(home_team, away_team, yesterday_teams, injuries):
         score_home += 0.3
         reasons_home.append(f"📉 Opp {int(away_aw*100)}% road")
     
-    # 8. DIVISION RIVALRY
     if home.get('division') == away.get('division') and home.get('division'):
         score_home += 0.5
         reasons_home.append("⚔️ Division")
     
-    # 9. ALTITUDE
     if home_team == "Denver":
         score_home += 1.0
         reasons_home.append("🏔️ Altitude")
     
-    # 10. QUALITY FACTOR
     if home_net > 5:
         score_home += 0.5
         if f"📊 Net +{home_net:.1f}" not in reasons_home:
@@ -404,7 +437,6 @@ def calc_ml_score(home_team, away_team, yesterday_teams, injuries):
         if f"📊 Net +{away_net:.1f}" not in reasons_away:
             reasons_away.append("⭐ Elite")
     
-    # Normalize to 10-point scale
     total = score_home + score_away
     if total > 0:
         home_final = round((score_home / total) * 10, 1)
@@ -447,7 +479,6 @@ def calc_totals_score(home_team, away_team, yesterday_teams, injuries):
     reasons_under = []
     reasons_over = []
     
-    # 1. PACE
     home_pace = home.get('pace', 100)
     away_pace = away.get('pace', 100)
     avg_pace = (home_pace + away_pace) / 2
@@ -464,7 +495,6 @@ def calc_totals_score(home_team, away_team, yesterday_teams, injuries):
         score_over += 1.0
         reasons_over.append(f"🔥 Pace {avg_pace:.1f}")
     
-    # 2. DEFENSE
     home_def = home.get('def_rank', 15)
     away_def = away.get('def_rank', 15)
     avg_def = (home_def + away_def) / 2
@@ -481,7 +511,6 @@ def calc_totals_score(home_team, away_team, yesterday_teams, injuries):
         score_over += 1.0
         reasons_over.append(f"💥 DEF #{int(avg_def)}")
     
-    # 3. REST/FATIGUE
     home_b2b = home_team in yesterday_teams
     away_b2b = away_team in yesterday_teams
     if home_b2b and away_b2b:
@@ -492,7 +521,6 @@ def calc_totals_score(home_team, away_team, yesterday_teams, injuries):
         tired_team = home_team if home_b2b else away_team
         reasons_under.append(f"🛏️ {tired_team[:3]} B2B")
     
-    # 4. 3PT SHOOTING
     home_3pt = home.get('three_pct', 36)
     away_3pt = away.get('three_pct', 36)
     avg_3pt = (home_3pt + away_3pt) / 2
@@ -503,7 +531,6 @@ def calc_totals_score(home_team, away_team, yesterday_teams, injuries):
         score_over += 1.0
         reasons_over.append(f"🎯 High 3PT {avg_3pt:.1f}%")
     
-    # 5. INJURY IMPACT
     home_inj, home_stars = get_injury_score(home_team, injuries)
     away_inj, away_stars = get_injury_score(away_team, injuries)
     if home_stars or away_stars:
@@ -511,7 +538,6 @@ def calc_totals_score(home_team, away_team, yesterday_teams, injuries):
         out_names = (home_stars + away_stars)[:2]
         reasons_under.append(f"🏥 {', '.join([n[:8] for n in out_names])} OUT")
     
-    # 6. BLOWOUT RISK
     home_net = home.get('net_rating', 0)
     away_net = away.get('net_rating', 0)
     net_diff = abs(home_net - away_net)
@@ -522,12 +548,10 @@ def calc_totals_score(home_team, away_team, yesterday_teams, injuries):
         score_under += 0.5
         reasons_under.append("⚔️ Close game")
     
-    # 7. ALTITUDE
     if home_team == "Denver":
         score_under += 0.75
         reasons_under.append("🏔️ Denver altitude")
     
-    # 8. FT RATE
     home_ft = home.get('ft_rate', 0.25)
     away_ft = away.get('ft_rate', 0.25)
     avg_ft = (home_ft + away_ft) / 2
@@ -538,7 +562,6 @@ def calc_totals_score(home_team, away_team, yesterday_teams, injuries):
         score_over += 0.5
         reasons_over.append("🏃 Low FT rate")
     
-    # 9. REBOUND RATE
     home_reb = home.get('reb_rate', 50)
     away_reb = away.get('reb_rate', 50)
     avg_reb = (home_reb + away_reb) / 2
@@ -546,12 +569,10 @@ def calc_totals_score(home_team, away_team, yesterday_teams, injuries):
         score_under += 0.5
         reasons_under.append("🏀 Control boards")
     
-    # 10. HOME SCORING
     if home.get('home_win_pct', 0.5) > 0.65 and home_net > 5:
         score_over += 0.5
         reasons_over.append("🏠 Home scoring")
     
-    # Normalize
     total = score_under + score_over
     if total > 0:
         under_final = round((score_under / total) * 10, 1)
@@ -773,6 +794,52 @@ st.divider()
 if yesterday_teams:
     st.info(f"📅 **B2B Teams Today:** {', '.join(sorted(yesterday_teams))}")
 
+# ========== 🔥 TOP PICKS - BLOWOUT RISK ==========
+st.subheader("🔥 TOP PICKS - BLOWOUT RISK (Tired Away @ Fresh Home)")
+
+if game_list:
+    top_picks = []
+    for game_key in game_list:
+        parts = game_key.split("@")
+        away_t = parts[0]
+        home_t = parts[1]
+        
+        away_b2b = away_t in yesterday_teams
+        home_b2b = home_t in yesterday_teams
+        
+        if away_b2b and not home_b2b:
+            away_r = 0
+            home_r = 1
+            
+            home_i, _ = get_injury_score(home_t, injuries)
+            away_i, _ = get_injury_score(away_t, injuries)
+            
+            res = calc_12_factor_edge(home_t, away_t, home_r, away_r, home_i, away_i, 50)
+            
+            top_picks.append({
+                'game': game_key,
+                'home_team': home_t,
+                'away_team': away_t,
+                'home_win_prob': res['home_win_prob'],
+                'spread': res['expected_spread']
+            })
+    
+    top_picks.sort(key=lambda x: x['home_win_prob'], reverse=True)
+    
+    if top_picks:
+        for pick in top_picks:
+            st.markdown(f"""
+            <div style='background:linear-gradient(135deg,#1a1a2e,#16213e);padding:15px;border-radius:10px;border:2px solid #00ff00;margin-bottom:10px'>
+                <span style='color:#00ff00;font-size:1.8em;font-weight:bold'>🎯 PICK: {pick['home_team']} ML</span>
+                <span style='color:#00ff00;font-size:1.1em;margin-left:15px'>HIGH CONFIDENCE</span>
+                <br><span style='color:#aaa;font-size:0.9em'>{pick['game'].replace('@', ' @ ')} | {pick['home_team']} {pick['home_win_prob']:.0f}% to win (home, fresh) | 🔴 {pick['away_team']} B2B (tired)</span>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("⚪ No BLOWOUT RISK games today — no tired away team @ fresh home matchups")
+else:
+    st.info("No games today")
+
 st.divider()
 
 # ========== PACE SCANNER ==========
@@ -883,4 +950,4 @@ if feedback_text:
     </a>
     """, unsafe_allow_html=True)
 
-st.caption("TESTER v1.0")
+st.caption("TESTER v1.1")
