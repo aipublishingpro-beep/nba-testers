@@ -922,8 +922,7 @@ with st.form("add_position_form"):
     price_paid = p2.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1)
     contracts = p3.number_input("📄 Contracts", min_value=1, max_value=1000, value=10, step=1)
     
-    threshold_select = st.number_input("🎯 Threshold (Totals only)", min_value=180.0, max_value=280.0, value=225.5, step=3.0, 
-                                       disabled=(market_type == "Moneyline (Winner)"))
+    threshold_select = st.number_input("🎯 Threshold (Totals only)", min_value=180.0, max_value=280.0, value=225.5, step=3.0)
     
     add_btn = st.form_submit_button("✅ ADD POSITION", use_container_width=True)
     
