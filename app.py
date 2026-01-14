@@ -1114,31 +1114,17 @@ feedback_text = st.text_area(
 
 feedback_name = st.text_input("Name (optional)", placeholder="Your name", key="feedback_name")
 
-if st.button("📋 Copy Feedback to Clipboard", use_container_width=True):
-    if feedback_text:
-        clipboard_text = f"""
-NBA EDGE FINDER - TESTER FEEDBACK
----------------------------------
+if feedback_text:
+    clipboard_text = f"""NBA EDGE FINDER FEEDBACK
 Category: {feedback_type}
 From: {feedback_name if feedback_name else 'Anonymous'}
 Date: {now.strftime('%Y-%m-%d %I:%M %p ET')}
 
-{feedback_text}
----------------------------------
-        """.strip()
-        st.code(clipboard_text, language=None)
-        st.success("👆 Copy the text above and send via email!")
-    else:
-        st.warning("Please enter your feedback first")
-
-if feedback_text:
-    import urllib.parse
-    subject = urllib.parse.quote(f"NBA Edge Finder Feedback: {feedback_type}")
-    body = urllib.parse.quote(f"Category: {feedback_type}\nFrom: {feedback_name if feedback_name else 'Anonymous'}\n\n{feedback_text}")
-    st.markdown(f"""
-    <a href="mailto:aipublishingpro@gmail.com?subject={subject}&body={body}" style='display:inline-block;background:#00aa00;color:white;padding:10px 20px;border-radius:5px;text-decoration:none;margin-top:10px'>
-        📧 Send Feedback via Email
-    </a>
-    """, unsafe_allow_html=True)
+{feedback_text}"""
+    
+    st.code(clipboard_text, language=None)
+    st.info("👆 **Copy the text above** and email to: **aipublishingpro@gmail.com**")
+else:
+    st.caption("📧 Send feedback to: **aipublishingpro@gmail.com**")
 
 st.caption("TESTER v1.1")
