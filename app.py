@@ -885,6 +885,14 @@ def build_kalshi_totals_url(away_team, home_team):
     ticker = f"kxnbatotal-{date_str}{away_code}{home_code}"
     return f"https://kalshi.com/markets/kxnbatotal/pro-basketball-total-points/{ticker}"
 
+def build_kalshi_ml_url(away_team, home_team):
+    away_code = KALSHI_CODES.get(away_team, "xxx")
+    home_code = KALSHI_CODES.get(home_team, "xxx")
+    today = datetime.now(pytz.timezone('US/Eastern'))
+    date_str = today.strftime("%y%b%d").lower()
+    ticker = f"kxnbagame-{date_str}{away_code}{home_code}"
+    return f"https://kalshi.com/markets/kxnbagame/pro-basketball-moneyline/{ticker}"
+
 if "positions" not in st.session_state:
     st.session_state.positions = []
 
@@ -893,19 +901,36 @@ st.subheader("➕ ADD NEW POSITION")
 
 game_options = ["Select a game..."] + [gk.replace("@", " @ ") for gk in game_list]
 selected_game = st.selectbox("🏀 Game", game_options, key="game_select")
-threshold_select = st.number_input("🎯 Threshold (check Kalshi for available)", min_value=180.0, max_value=280.0, value=225.5, step=3.0, key="threshold_select")
+
+# Market type selector
+market_type = st.radio("📈 Market Type", ["Totals (Over/Under)", "Moneyline (Winner)"], horizontal=True, key="market_type")
+
+if market_type == "Totals (Over/Under)":
+    threshold_select = st.number_input("🎯 Threshold (check Kalshi for available)", min_value=180.0, max_value=280.0, value=225.5, step=3.0, key="threshold_select")
 
 if selected_game != "Select a game...":
     parts = selected_game.replace(" @ ", "@").split("@")
     away_t = parts[0]
     home_t = parts[1]
-    kalshi_url = build_kalshi_totals_url(away_t, home_t)
+    if market_type == "Totals (Over/Under)":
+        kalshi_url = build_kalshi_totals_url(away_t, home_t)
+    else:
+        kalshi_url = build_kalshi_ml_url(away_t, home_t)
     st.link_button(f"🔗 View {selected_game} on Kalshi", kalshi_url, use_container_width=True)
 
 with st.form("add_position_form"):
     p1, p2, p3 = st.columns(3)
     
-    side = p1.selectbox("📊 Side", ["NO (Under)", "YES (Over)"], key="side_form")
+    if market_type == "Totals (Over/Under)":
+        side = p1.selectbox("📊 Side", ["NO (Under)", "YES (Over)"], key="side_form")
+    else:
+        # For ML, show the two teams
+        if selected_game != "Select a game...":
+            parts = selected_game.replace(" @ ", "@").split("@")
+            side = p1.selectbox("📊 Pick Winner", [f"{parts[1]} (Home)", f"{parts[0]} (Away)"], key="side_form")
+        else:
+            side = p1.selectbox("📊 Pick Winner", ["Select game first"], key="side_form")
+    
     price_paid = p2.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1, key="price_form")
     contracts = p3.number_input("📄 Contracts", min_value=1, max_value=1000, value=10, step=1)
     
@@ -913,16 +938,30 @@ with st.form("add_position_form"):
     
     if selected_game != "Select a game..." and add_manual:
         game_key = selected_game.replace(" @ ", "@")
-        side_clean = "NO" if "NO" in side else "YES"
+        parts = game_key.split("@")
         
-        st.session_state.positions.append({
-            'game': game_key,
-            'side': side_clean,
-            'threshold': threshold_select,
-            'price': price_paid,
-            'contracts': contracts,
-            'cost': round(price_paid * contracts / 100, 2)
-        })
+        if market_type == "Totals (Over/Under)":
+            side_clean = "NO" if "NO" in side else "YES"
+            st.session_state.positions.append({
+                'game': game_key,
+                'type': 'totals',
+                'side': side_clean,
+                'threshold': threshold_select,
+                'price': price_paid,
+                'contracts': contracts,
+                'cost': round(price_paid * contracts / 100, 2)
+            })
+        else:
+            # ML position
+            team_pick = parts[1] if "Home" in side else parts[0]
+            st.session_state.positions.append({
+                'game': game_key,
+                'type': 'ml',
+                'pick': team_pick,
+                'price': price_paid,
+                'contracts': contracts,
+                'cost': round(price_paid * contracts / 100, 2)
+            })
         st.rerun()
 
 st.divider()
@@ -938,85 +977,167 @@ if st.session_state.positions:
         price = pos.get('price', 50)
         contracts = pos.get('contracts', 1)
         cost = pos.get('cost', round(price * contracts / 100, 2))
+        pos_type = pos.get('type', 'totals')  # Default to totals for old positions
+        
+        potential_win = round((100 - price) * contracts / 100, 2)
+        potential_loss = cost
         
         if g:
             total = g['total']
             mins = get_minutes_played(g['period'], g['clock'], g['status_type'])
             is_final = g['status_type'] == "STATUS_FINAL"
-            projected = round((total / mins) * 48) if mins > 0 else None
-            cushion = (pos['threshold'] - projected) if pos['side'] == "NO" and projected else ((projected - pos['threshold']) if projected else 0)
-            
-            potential_win = round((100 - price) * contracts / 100, 2)
-            potential_loss = cost
-            
-            if is_final:
-                won = (total < pos['threshold']) if pos['side'] == "NO" else (total > pos['threshold'])
-                if won:
-                    status_label = "✅ WON!"
-                    status_color = "#00ff00"
-                    pnl_display = f"+${potential_win:.2f}"
-                    pnl_color = "#00ff00"
-                else:
-                    status_label = "❌ LOST"
-                    status_color = "#ff0000"
-                    pnl_display = f"-${potential_loss:.2f}"
-                    pnl_color = "#ff0000"
-            elif projected:
-                if cushion >= 15:
-                    status_label = "🟢 VERY SAFE"
-                    status_color = "#00ff00"
-                elif cushion >= 8:
-                    status_label = "🟢 LOOKING GOOD"
-                    status_color = "#00ff00"
-                elif cushion >= 3:
-                    status_label = "🟡 ON TRACK"
-                    status_color = "#ffff00"
-                elif cushion >= -3:
-                    status_label = "🟠 WARNING"
-                    status_color = "#ff8800"
-                else:
-                    status_label = "🔴 AT RISK"
-                    status_color = "#ff0000"
-                pnl_display = f"Win: +${potential_win:.2f}"
-                pnl_color = "#888888"
-            else:
-                status_label = "⏳ WAITING"
-                status_color = "#888888"
-                pnl_display = f"Win: +${potential_win:.2f}"
-                pnl_color = "#888888"
-            
             game_status = "FINAL" if is_final else f"Q{g['period']} {g['clock']}"
             
-            st.markdown(f"""
-            <div style='background:linear-gradient(135deg,#1a1a2e,#16213e);padding:15px;border-radius:10px;border:2px solid {status_color};margin-bottom:10px'>
-                <div style='display:flex;justify-content:space-between;align-items:center'>
-                    <div>
-                        <span style='color:#fff;font-size:1.2em;font-weight:bold'>{game_key.replace('@', ' @ ')}</span>
-                        <span style='color:#888;margin-left:10px'>{game_status}</span>
+            if pos_type == 'ml':
+                # MONEYLINE position
+                pick = pos.get('pick', '')
+                parts = game_key.split("@")
+                away_team = parts[0]
+                home_team = parts[1]
+                
+                home_score = g['home_score']
+                away_score = g['away_score']
+                pick_score = home_score if pick == home_team else away_score
+                opp_score = away_score if pick == home_team else home_score
+                lead = pick_score - opp_score
+                
+                if is_final:
+                    won = pick_score > opp_score
+                    if won:
+                        status_label = "✅ WON!"
+                        status_color = "#00ff00"
+                        pnl_display = f"+${potential_win:.2f}"
+                        pnl_color = "#00ff00"
+                    else:
+                        status_label = "❌ LOST"
+                        status_color = "#ff0000"
+                        pnl_display = f"-${potential_loss:.2f}"
+                        pnl_color = "#ff0000"
+                elif mins > 0:
+                    if lead >= 15:
+                        status_label = "🟢 CRUISING"
+                        status_color = "#00ff00"
+                    elif lead >= 8:
+                        status_label = "🟢 LEADING"
+                        status_color = "#00ff00"
+                    elif lead >= 1:
+                        status_label = "🟡 AHEAD"
+                        status_color = "#ffff00"
+                    elif lead >= -5:
+                        status_label = "🟠 CLOSE"
+                        status_color = "#ff8800"
+                    else:
+                        status_label = "🔴 BEHIND"
+                        status_color = "#ff0000"
+                    pnl_display = f"Win: +${potential_win:.2f}"
+                    pnl_color = "#888888"
+                else:
+                    status_label = "⏳ WAITING"
+                    status_color = "#888888"
+                    lead = 0
+                    pnl_display = f"Win: +${potential_win:.2f}"
+                    pnl_color = "#888888"
+                
+                st.markdown(f"""
+                <div style='background:linear-gradient(135deg,#1a1a2e,#16213e);padding:15px;border-radius:10px;border:2px solid {status_color};margin-bottom:10px'>
+                    <div style='display:flex;justify-content:space-between;align-items:center'>
+                        <div>
+                            <span style='color:#fff;font-size:1.2em;font-weight:bold'>{game_key.replace('@', ' @ ')}</span>
+                            <span style='color:#888;margin-left:10px'>{game_status}</span>
+                        </div>
+                        <span style='color:{status_color};font-size:1.3em;font-weight:bold'>{status_label}</span>
                     </div>
-                    <span style='color:{status_color};font-size:1.3em;font-weight:bold'>{status_label}</span>
+                    <div style='margin-top:10px;display:flex;gap:30px'>
+                        <span style='color:#aaa'>🎯 <b style="color:#fff">ML: {pick}</b></span>
+                        <span style='color:#aaa'>💵 <b style="color:#fff">{contracts}x @ {price}¢</b> (${cost:.2f})</span>
+                        <span style='color:#aaa'>📊 Score: <b style="color:#fff">{pick_score}-{opp_score}</b></span>
+                        <span style='color:#aaa'>📈 Lead: <b style="color:{status_color}">{lead:+d}</b></span>
+                        <span style='color:{pnl_color}'>{pnl_display}</span>
+                    </div>
                 </div>
-                <div style='margin-top:10px;display:flex;gap:30px'>
-                    <span style='color:#aaa'>📊 <b style="color:#fff">{pos['side']} {pos['threshold']}</b></span>
-                    <span style='color:#aaa'>💵 <b style="color:#fff">{contracts}x @ {price}¢</b> (${cost:.2f})</span>
-                    <span style='color:#aaa'>📈 Proj: <b style="color:#fff">{projected if projected else '—'}</b></span>
-                    <span style='color:#aaa'>🎯 Cushion: <b style="color:{status_color}">{cushion:+.0f}</b></span>
-                    <span style='color:{pnl_color}'>{pnl_display}</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
             
+            else:
+                # TOTALS position
+                projected = round((total / mins) * 48) if mins > 0 else None
+                cushion = (pos['threshold'] - projected) if pos.get('side') == "NO" and projected else ((projected - pos['threshold']) if projected else 0)
+                
+                if is_final:
+                    won = (total < pos['threshold']) if pos.get('side') == "NO" else (total > pos['threshold'])
+                    if won:
+                        status_label = "✅ WON!"
+                        status_color = "#00ff00"
+                        pnl_display = f"+${potential_win:.2f}"
+                        pnl_color = "#00ff00"
+                    else:
+                        status_label = "❌ LOST"
+                        status_color = "#ff0000"
+                        pnl_display = f"-${potential_loss:.2f}"
+                        pnl_color = "#ff0000"
+                elif projected:
+                    if cushion >= 15:
+                        status_label = "🟢 VERY SAFE"
+                        status_color = "#00ff00"
+                    elif cushion >= 8:
+                        status_label = "🟢 LOOKING GOOD"
+                        status_color = "#00ff00"
+                    elif cushion >= 3:
+                        status_label = "🟡 ON TRACK"
+                        status_color = "#ffff00"
+                    elif cushion >= -3:
+                        status_label = "🟠 WARNING"
+                        status_color = "#ff8800"
+                    else:
+                        status_label = "🔴 AT RISK"
+                        status_color = "#ff0000"
+                    pnl_display = f"Win: +${potential_win:.2f}"
+                    pnl_color = "#888888"
+                else:
+                    status_label = "⏳ WAITING"
+                    status_color = "#888888"
+                    pnl_display = f"Win: +${potential_win:.2f}"
+                    pnl_color = "#888888"
+                
+                st.markdown(f"""
+                <div style='background:linear-gradient(135deg,#1a1a2e,#16213e);padding:15px;border-radius:10px;border:2px solid {status_color};margin-bottom:10px'>
+                    <div style='display:flex;justify-content:space-between;align-items:center'>
+                        <div>
+                            <span style='color:#fff;font-size:1.2em;font-weight:bold'>{game_key.replace('@', ' @ ')}</span>
+                            <span style='color:#888;margin-left:10px'>{game_status}</span>
+                        </div>
+                        <span style='color:{status_color};font-size:1.3em;font-weight:bold'>{status_label}</span>
+                    </div>
+                    <div style='margin-top:10px;display:flex;gap:30px'>
+                        <span style='color:#aaa'>📊 <b style="color:#fff">{pos.get('side', 'NO')} {pos.get('threshold', 0)}</b></span>
+                        <span style='color:#aaa'>💵 <b style="color:#fff">{contracts}x @ {price}¢</b> (${cost:.2f})</span>
+                        <span style='color:#aaa'>📈 Proj: <b style="color:#fff">{projected if projected else '—'}</b></span>
+                        <span style='color:#aaa'>🎯 Cushion: <b style="color:{status_color}">{cushion:+.0f}</b></span>
+                        <span style='color:{pnl_color}'>{pnl_display}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Buttons for both types
             btn1, btn2 = st.columns([3, 1])
             parts = game_key.split("@")
-            kalshi_url = build_kalshi_totals_url(parts[0], parts[1])
+            if pos_type == 'ml':
+                kalshi_url = build_kalshi_ml_url(parts[0], parts[1])
+            else:
+                kalshi_url = build_kalshi_totals_url(parts[0], parts[1])
             btn1.link_button(f"🔗 View on Kalshi", kalshi_url, use_container_width=True)
             if btn2.button("🗑️ Remove", key=f"del_{idx}"):
                 st.session_state.positions.pop(idx)
                 st.rerun()
         else:
+            # Game not started yet
+            if pos_type == 'ml':
+                display_text = f"ML: {pos.get('pick', '?')}"
+            else:
+                display_text = f"{pos.get('side', 'NO')} {pos.get('threshold', 0)}"
+            
             st.markdown(f"""
             <div style='background:#1a1a2e;padding:15px;border-radius:10px;border:1px solid #444;margin-bottom:10px'>
-                <span style='color:#888'>{game_key.replace('@', ' @ ')} — {pos['side']} {pos['threshold']} — {contracts}x @ {price}¢</span>
+                <span style='color:#888'>{game_key.replace('@', ' @ ')} — {display_text} — {contracts}x @ {price}¢</span>
                 <span style='color:#666;margin-left:15px'>⏳ Game not started</span>
             </div>
             """, unsafe_allow_html=True)
