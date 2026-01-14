@@ -842,6 +842,174 @@ else:
 
 st.divider()
 
+# ========== KALSHI TEAM CODES ==========
+KALSHI_CODES = {
+    "Atlanta": "atl", "Boston": "bos", "Brooklyn": "bkn", "Charlotte": "cha",
+    "Chicago": "chi", "Cleveland": "cle", "Dallas": "dal", "Denver": "den",
+    "Detroit": "det", "Golden State": "gsw", "Houston": "hou", "Indiana": "ind",
+    "LA Clippers": "lac", "LA Lakers": "lal", "Memphis": "mem", "Miami": "mia",
+    "Milwaukee": "mil", "Minnesota": "min", "New Orleans": "nop", "New York": "nyk",
+    "Oklahoma City": "okc", "Orlando": "orl", "Philadelphia": "phi", "Phoenix": "phx",
+    "Portland": "por", "Sacramento": "sac", "San Antonio": "sas", "Toronto": "tor",
+    "Utah": "uta", "Washington": "was"
+}
+
+def build_kalshi_totals_url(away_team, home_team):
+    away_code = KALSHI_CODES.get(away_team, "xxx")
+    home_code = KALSHI_CODES.get(home_team, "xxx")
+    today = datetime.now(pytz.timezone('US/Eastern'))
+    date_str = today.strftime("%y%b%d").lower()
+    ticker = f"kxnbatotal-{date_str}{away_code}{home_code}"
+    return f"https://kalshi.com/markets/kxnbatotal/pro-basketball-total-points/{ticker}"
+
+if "positions" not in st.session_state:
+    st.session_state.positions = []
+
+# ========== ADD NEW POSITION ==========
+st.subheader("➕ ADD NEW POSITION")
+
+game_options = ["Select a game..."] + [gk.replace("@", " @ ") for gk in game_list]
+selected_game = st.selectbox("🏀 Game", game_options, key="game_select")
+threshold_select = st.number_input("🎯 Threshold (check Kalshi for available)", min_value=180.0, max_value=280.0, value=225.5, step=3.0, key="threshold_select")
+
+if selected_game != "Select a game...":
+    parts = selected_game.replace(" @ ", "@").split("@")
+    away_t = parts[0]
+    home_t = parts[1]
+    kalshi_url = build_kalshi_totals_url(away_t, home_t)
+    st.link_button(f"🔗 View {selected_game} on Kalshi", kalshi_url, use_container_width=True)
+
+with st.form("add_position_form"):
+    p1, p2, p3 = st.columns(3)
+    
+    side = p1.selectbox("📊 Side", ["NO (Under)", "YES (Over)"], key="side_form")
+    price_paid = p2.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1, key="price_form")
+    contracts = p3.number_input("📄 Contracts", min_value=1, max_value=1000, value=10, step=1)
+    
+    add_manual = st.form_submit_button("✅ ADD POSITION (manual)", use_container_width=True)
+    
+    if selected_game != "Select a game..." and add_manual:
+        game_key = selected_game.replace(" @ ", "@")
+        side_clean = "NO" if "NO" in side else "YES"
+        
+        st.session_state.positions.append({
+            'game': game_key,
+            'side': side_clean,
+            'threshold': threshold_select,
+            'price': price_paid,
+            'contracts': contracts,
+            'cost': round(price_paid * contracts / 100, 2)
+        })
+        st.rerun()
+
+st.divider()
+
+# ========== ACTIVE POSITIONS ==========
+st.subheader("📈 ACTIVE POSITIONS")
+
+if st.session_state.positions:
+    for idx, pos in enumerate(st.session_state.positions):
+        game_key = pos['game']
+        g = games.get(game_key)
+        
+        price = pos.get('price', 50)
+        contracts = pos.get('contracts', 1)
+        cost = pos.get('cost', round(price * contracts / 100, 2))
+        
+        if g:
+            total = g['total']
+            mins = get_minutes_played(g['period'], g['clock'], g['status_type'])
+            is_final = g['status_type'] == "STATUS_FINAL"
+            projected = round((total / mins) * 48) if mins > 0 else None
+            cushion = (pos['threshold'] - projected) if pos['side'] == "NO" and projected else ((projected - pos['threshold']) if projected else 0)
+            
+            potential_win = round((100 - price) * contracts / 100, 2)
+            potential_loss = cost
+            
+            if is_final:
+                won = (total < pos['threshold']) if pos['side'] == "NO" else (total > pos['threshold'])
+                if won:
+                    status_label = "✅ WON!"
+                    status_color = "#00ff00"
+                    pnl_display = f"+${potential_win:.2f}"
+                    pnl_color = "#00ff00"
+                else:
+                    status_label = "❌ LOST"
+                    status_color = "#ff0000"
+                    pnl_display = f"-${potential_loss:.2f}"
+                    pnl_color = "#ff0000"
+            elif projected:
+                if cushion >= 15:
+                    status_label = "🟢 VERY SAFE"
+                    status_color = "#00ff00"
+                elif cushion >= 8:
+                    status_label = "🟢 LOOKING GOOD"
+                    status_color = "#00ff00"
+                elif cushion >= 3:
+                    status_label = "🟡 ON TRACK"
+                    status_color = "#ffff00"
+                elif cushion >= -3:
+                    status_label = "🟠 WARNING"
+                    status_color = "#ff8800"
+                else:
+                    status_label = "🔴 AT RISK"
+                    status_color = "#ff0000"
+                pnl_display = f"Win: +${potential_win:.2f}"
+                pnl_color = "#888888"
+            else:
+                status_label = "⏳ WAITING"
+                status_color = "#888888"
+                pnl_display = f"Win: +${potential_win:.2f}"
+                pnl_color = "#888888"
+            
+            game_status = "FINAL" if is_final else f"Q{g['period']} {g['clock']}"
+            
+            st.markdown(f"""
+            <div style='background:linear-gradient(135deg,#1a1a2e,#16213e);padding:15px;border-radius:10px;border:2px solid {status_color};margin-bottom:10px'>
+                <div style='display:flex;justify-content:space-between;align-items:center'>
+                    <div>
+                        <span style='color:#fff;font-size:1.2em;font-weight:bold'>{game_key.replace('@', ' @ ')}</span>
+                        <span style='color:#888;margin-left:10px'>{game_status}</span>
+                    </div>
+                    <span style='color:{status_color};font-size:1.3em;font-weight:bold'>{status_label}</span>
+                </div>
+                <div style='margin-top:10px;display:flex;gap:30px'>
+                    <span style='color:#aaa'>📊 <b style="color:#fff">{pos['side']} {pos['threshold']}</b></span>
+                    <span style='color:#aaa'>💵 <b style="color:#fff">{contracts}x @ {price}¢</b> (${cost:.2f})</span>
+                    <span style='color:#aaa'>📈 Proj: <b style="color:#fff">{projected if projected else '—'}</b></span>
+                    <span style='color:#aaa'>🎯 Cushion: <b style="color:{status_color}">{cushion:+.0f}</b></span>
+                    <span style='color:{pnl_color}'>{pnl_display}</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            btn1, btn2 = st.columns([3, 1])
+            parts = game_key.split("@")
+            kalshi_url = build_kalshi_totals_url(parts[0], parts[1])
+            btn1.link_button(f"🔗 View on Kalshi", kalshi_url, use_container_width=True)
+            if btn2.button("🗑️ Remove", key=f"del_{idx}"):
+                st.session_state.positions.pop(idx)
+                st.rerun()
+        else:
+            st.markdown(f"""
+            <div style='background:#1a1a2e;padding:15px;border-radius:10px;border:1px solid #444;margin-bottom:10px'>
+                <span style='color:#888'>{game_key.replace('@', ' @ ')} — {pos['side']} {pos['threshold']} — {contracts}x @ {price}¢</span>
+                <span style='color:#666;margin-left:15px'>⏳ Game not started</span>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("🗑️ Remove", key=f"del_{idx}"):
+                st.session_state.positions.pop(idx)
+                st.rerun()
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("🗑️ Clear All Positions", use_container_width=True):
+        st.session_state.positions = []
+        st.rerun()
+else:
+    st.info("No positions tracked — use the form above to add your first position")
+
+st.divider()
+
 # ========== PACE SCANNER ==========
 st.subheader("🔥 PACE SCANNER")
 
