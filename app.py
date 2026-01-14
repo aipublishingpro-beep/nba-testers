@@ -1089,42 +1089,6 @@ st.markdown("""
 
 st.divider()
 
-# ========== FEEDBACK SECTION ==========
-st.subheader("💬 TESTER FEEDBACK")
-
-st.markdown("""
-<div style='background:#1a1a2e;padding:15px;border-radius:10px;margin-bottom:15px'>
-    <span style='color:#00aaff;font-weight:bold'>Help improve this app!</span><br>
-    <span style='color:#aaa'>Share bugs, suggestions, or questions below.</span>
-</div>
-""", unsafe_allow_html=True)
-
-feedback_type = st.selectbox(
-    "Category",
-    ["🐛 Bug Report", "💡 Suggestion", "❓ Question", "🎯 Signal Feedback", "📝 Other"],
-    key="feedback_type"
-)
-
-feedback_text = st.text_area(
-    "Your feedback",
-    placeholder="Describe the issue, suggestion, or question...",
-    height=120,
-    key="feedback_text"
-)
-
-feedback_name = st.text_input("Name (optional)", placeholder="Your name", key="feedback_name")
-
-if feedback_text:
-    clipboard_text = f"""NBA EDGE FINDER FEEDBACK
-Category: {feedback_type}
-From: {feedback_name if feedback_name else 'Anonymous'}
-Date: {now.strftime('%Y-%m-%d %I:%M %p ET')}
-
-{feedback_text}"""
-    
-    st.code(clipboard_text, language=None)
-    st.info("👆 **Copy the text above** and email to: **aipublishingpro@gmail.com**")
-else:
-    st.caption("📧 Send feedback to: **aipublishingpro@gmail.com**")
+st.caption("💬 Have suggestions or found a bug? DM me.")
 
 st.caption("TESTER v1.1")
