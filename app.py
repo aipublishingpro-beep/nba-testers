@@ -112,8 +112,8 @@ with st.sidebar:
     
     st.subheader("🎯 ML Signal Tiers")
     st.markdown("""
-    🟢 **STRONG** → 8.0+ score  
-    🔵 **SIGNAL** → 6.5 - 7.9  
+    🟢 **STRONG PICK** → 8.0+ score  
+    🔵 **MODEL PICK** → 6.5 - 7.9  
     🟡 **LEAN** → 5.5 - 6.4  
     ⚪ **TOSS-UP** → 4.5 - 5.4  
     🔴 **SKIP** → Below 4.5
@@ -439,9 +439,9 @@ def calc_ml_score(home_team, away_team, yesterday_teams, injuries):
 
 def get_signal_tier(score):
     if score >= 8.0:
-        return "🟢 STRONG", "#00ff00"
+        return "🟢 STRONG PICK", "#00ff00"
     elif score >= 6.5:
-        return "🔵 SIGNAL", "#00aaff"
+        return "🔵 MODEL PICK", "#00aaff"
     elif score >= 5.5:
         return "🟡 LEAN", "#ffff00"
     elif score >= 4.5:
@@ -633,30 +633,32 @@ if game_list:
     skips = [p for p in all_picks if p['score'] < 4.5]
     
     if strong:
-        st.markdown("### 🟢 STRONG")
+        st.markdown("### 🟢 STRONG PICK")
         for p in strong:
             reasons_str = " • ".join(p['reasons']) if p['reasons'] else "Multiple factors"
             is_home = p['pick'] == p['home']
             opp = p['away'] if is_home else p['home']
             tag = "🏠" if is_home else "✈️"
             
-            col1, col2, col3 = st.columns([3, 2, 5])
+            col1, col2, col3, col4 = st.columns([3, 2, 4, 2])
             col1.markdown(f"**<span style='color:#00ff00'>{p['pick']}</span>** {tag} vs {opp}", unsafe_allow_html=True)
             col2.markdown(f"<span style='color:{p['color']};font-weight:bold'>{p['score']}/10 | +{p['edge']:.0f}%</span>", unsafe_allow_html=True)
             col3.markdown(f"<span style='color:#aaa;font-size:0.9em'>{reasons_str}</span>", unsafe_allow_html=True)
+            col4.markdown(f"<span style='background:#00aa00;color:white;padding:8px 15px;border-radius:5px;font-weight:bold'>PICK: {p['pick'].upper()}</span>", unsafe_allow_html=True)
     
     if buys:
-        st.markdown("### 🔵 SIGNAL")
+        st.markdown("### 🔵 MODEL PICK")
         for p in buys:
             reasons_str = " • ".join(p['reasons']) if p['reasons'] else "Multiple factors"
             is_home = p['pick'] == p['home']
             opp = p['away'] if is_home else p['home']
             tag = "🏠" if is_home else "✈️"
             
-            col1, col2, col3 = st.columns([3, 2, 5])
+            col1, col2, col3, col4 = st.columns([3, 2, 4, 2])
             col1.markdown(f"**<span style='color:#00aaff'>{p['pick']}</span>** {tag} vs {opp}", unsafe_allow_html=True)
             col2.markdown(f"<span style='color:{p['color']};font-weight:bold'>{p['score']}/10 | +{p['edge']:.0f}%</span>", unsafe_allow_html=True)
             col3.markdown(f"<span style='color:#aaa;font-size:0.9em'>{reasons_str}</span>", unsafe_allow_html=True)
+            col4.markdown(f"<span style='background:#00aa00;color:white;padding:8px 15px;border-radius:5px;font-weight:bold'>PICK: {p['pick'].upper()}</span>", unsafe_allow_html=True)
     
     if leans:
         st.markdown("### 🟡 LEAN")
@@ -669,7 +671,7 @@ if game_list:
             col1, col2, col3 = st.columns([3, 2, 5])
             col1.markdown(f"**<span style='color:#ffff00'>{p['pick']}</span>** {tag} vs {opp}", unsafe_allow_html=True)
             col2.markdown(f"<span style='color:{p['color']}'>{p['score']}/10 | +{p['edge']:.0f}%</span>", unsafe_allow_html=True)
-            col3.markdown(f"<span style='color:#888;font-size:0.85em'>{reasons_str}</span>", unsafe_allow_html=True)
+            col3.markdown(f"<span style='color:#888;font-size:0.85em'>{reasons_str}</span> → <span style='color:#ffff00;font-weight:bold'>{p['pick']}</span>", unsafe_allow_html=True)
     
     if tossups:
         st.markdown("### ⚪ TOSS-UP")
@@ -721,37 +723,41 @@ if game_list:
         st.markdown("### 🟢 STRONG NO (Under)")
         for p in strong_no:
             reasons_str = " • ".join(p['reasons']) if p['reasons'] else "Multiple factors"
-            col1, col2, col3 = st.columns([3, 2, 5])
+            col1, col2, col3, col4 = st.columns([3, 2, 4, 2])
             col1.markdown(f"**{p['away']}** @ **{p['home']}**")
             col2.markdown(f"<span style='color:{p['color']};font-weight:bold'>{p['score']}/10</span>", unsafe_allow_html=True)
             col3.markdown(f"<span style='color:#aaa;font-size:0.9em'>{reasons_str}</span>", unsafe_allow_html=True)
+            col4.markdown(f"<span style='background:#00aa00;color:white;padding:8px 15px;border-radius:5px;font-weight:bold'>PICK: NO</span>", unsafe_allow_html=True)
     
     if strong_yes:
         st.markdown("### 🟢 STRONG YES (Over)")
         for p in strong_yes:
             reasons_str = " • ".join(p['reasons']) if p['reasons'] else "Multiple factors"
-            col1, col2, col3 = st.columns([3, 2, 5])
+            col1, col2, col3, col4 = st.columns([3, 2, 4, 2])
             col1.markdown(f"**{p['away']}** @ **{p['home']}**")
             col2.markdown(f"<span style='color:{p['color']};font-weight:bold'>{p['score']}/10</span>", unsafe_allow_html=True)
             col3.markdown(f"<span style='color:#aaa;font-size:0.9em'>{reasons_str}</span>", unsafe_allow_html=True)
+            col4.markdown(f"<span style='background:#00aa00;color:white;padding:8px 15px;border-radius:5px;font-weight:bold'>PICK: YES</span>", unsafe_allow_html=True)
     
     if reg_no:
         st.markdown("### 🔵 NO (Under)")
         for p in reg_no:
             reasons_str = " • ".join(p['reasons']) if p['reasons'] else "Multiple factors"
-            col1, col2, col3 = st.columns([3, 2, 5])
+            col1, col2, col3, col4 = st.columns([3, 2, 4, 2])
             col1.markdown(f"**{p['away']}** @ **{p['home']}**")
             col2.markdown(f"<span style='color:{p['color']};font-weight:bold'>{p['score']}/10</span>", unsafe_allow_html=True)
             col3.markdown(f"<span style='color:#aaa;font-size:0.9em'>{reasons_str}</span>", unsafe_allow_html=True)
+            col4.markdown(f"<span style='background:#00aa00;color:white;padding:8px 15px;border-radius:5px;font-weight:bold'>PICK: NO</span>", unsafe_allow_html=True)
     
     if reg_yes:
         st.markdown("### 🔵 YES (Over)")
         for p in reg_yes:
             reasons_str = " • ".join(p['reasons']) if p['reasons'] else "Multiple factors"
-            col1, col2, col3 = st.columns([3, 2, 5])
+            col1, col2, col3, col4 = st.columns([3, 2, 4, 2])
             col1.markdown(f"**{p['away']}** @ **{p['home']}**")
             col2.markdown(f"<span style='color:{p['color']};font-weight:bold'>{p['score']}/10</span>", unsafe_allow_html=True)
             col3.markdown(f"<span style='color:#aaa;font-size:0.9em'>{reasons_str}</span>", unsafe_allow_html=True)
+            col4.markdown(f"<span style='background:#00aa00;color:white;padding:8px 15px;border-radius:5px;font-weight:bold'>PICK: YES</span>", unsafe_allow_html=True)
     
     if lean_no:
         st.markdown("### 🟡 LEAN NO (Under)")
@@ -760,7 +766,7 @@ if game_list:
             col1, col2, col3 = st.columns([3, 2, 5])
             col1.markdown(f"{p['away']} @ {p['home']}")
             col2.markdown(f"<span style='color:{p['color']}'>{p['score']}/10</span>", unsafe_allow_html=True)
-            col3.markdown(f"<span style='color:#888;font-size:0.85em'>{reasons_str}</span>", unsafe_allow_html=True)
+            col3.markdown(f"<span style='color:#888;font-size:0.85em'>{reasons_str}</span> → <span style='color:#ffff00;font-weight:bold'>NO</span>", unsafe_allow_html=True)
     
     if lean_yes:
         st.markdown("### 🟡 LEAN YES (Over)")
@@ -769,7 +775,7 @@ if game_list:
             col1, col2, col3 = st.columns([3, 2, 5])
             col1.markdown(f"{p['away']} @ {p['home']}")
             col2.markdown(f"<span style='color:{p['color']}'>{p['score']}/10</span>", unsafe_allow_html=True)
-            col3.markdown(f"<span style='color:#888;font-size:0.85em'>{reasons_str}</span>", unsafe_allow_html=True)
+            col3.markdown(f"<span style='color:#888;font-size:0.85em'>{reasons_str}</span> → <span style='color:#ffff00;font-weight:bold'>YES</span>", unsafe_allow_html=True)
     
     if tossups_t:
         st.markdown("### ⚪ TOSS-UP")
