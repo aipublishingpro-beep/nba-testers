@@ -161,7 +161,7 @@ with st.sidebar:
     """)
     
     st.divider()
-    st.caption("TESTER v1.1")
+    st.caption("TESTER v1.2")
 
 # ========== HELPER FUNCTIONS ==========
 def calc_distance(loc1, loc2):
@@ -284,7 +284,6 @@ def get_minutes_played(period, clock, status_type):
         return (period - 1) * 12 if period <= 4 else 48 + (period - 5) * 5
 
 def calc_12_factor_edge(home_team, away_team, home_rest, away_rest, home_inj, away_inj, kalshi_price):
-    """Calculate 12-factor edge for blowout risk games"""
     home = TEAM_STATS.get(home_team, {"pace": 100, "def_rank": 15, "net_rating": 0, "ft_rate": 0.25, "reb_rate": 50, "three_pct": 36, "home_win_pct": 0.5, "away_win_pct": 0.5, "division": ""})
     away = TEAM_STATS.get(away_team, {"pace": 100, "def_rank": 15, "net_rating": 0, "ft_rate": 0.25, "reb_rate": 50, "three_pct": 36, "home_win_pct": 0.5, "away_win_pct": 0.5, "division": ""})
     home_loc = TEAM_LOCATIONS.get(home_team, (0, 0))
@@ -618,18 +617,16 @@ def get_totals_signal_tier(score, pick):
 # ========== FETCH DATA ==========
 games = fetch_espn_scores()
 game_list = sorted(list(games.keys()))
-yesterday_teams_raw = fetch_yesterday_teams()  # All teams that played yesterday
+yesterday_teams_raw = fetch_yesterday_teams()
 injuries = fetch_espn_injuries()
 now = datetime.now(pytz.timezone('US/Eastern'))
 
-# Get teams playing TODAY
 today_teams = set()
 for game_key in games.keys():
     parts = game_key.split("@")
-    today_teams.add(parts[0])  # away team
-    today_teams.add(parts[1])  # home team
+    today_teams.add(parts[0])
+    today_teams.add(parts[1])
 
-# TRUE B2B = played yesterday AND playing today
 yesterday_teams = yesterday_teams_raw.intersection(today_teams)
 
 # ========== HEADER ==========
@@ -669,7 +666,6 @@ if game_list:
             is_home = p['pick'] == p['home']
             opp = p['away'] if is_home else p['home']
             tag = "🏠" if is_home else "✈️"
-            
             col1, col2, col3 = st.columns([4, 2, 2])
             col1.markdown(f"**<span style='color:#00ff00'>{p['pick']}</span>** {tag} vs {opp}", unsafe_allow_html=True)
             col2.markdown(f"<span style='color:{p['color']};font-weight:bold'>{p['score']}/10 | +{p['edge']:.0f}%</span>", unsafe_allow_html=True)
@@ -681,7 +677,6 @@ if game_list:
             is_home = p['pick'] == p['home']
             opp = p['away'] if is_home else p['home']
             tag = "🏠" if is_home else "✈️"
-            
             col1, col2, col3 = st.columns([4, 2, 2])
             col1.markdown(f"**<span style='color:#00aaff'>{p['pick']}</span>** {tag} vs {opp}", unsafe_allow_html=True)
             col2.markdown(f"<span style='color:{p['color']};font-weight:bold'>{p['score']}/10 | +{p['edge']:.0f}%</span>", unsafe_allow_html=True)
@@ -693,7 +688,6 @@ if game_list:
             is_home = p['pick'] == p['home']
             opp = p['away'] if is_home else p['home']
             tag = "🏠" if is_home else "✈️"
-            
             col1, col2, col3 = st.columns([4, 2, 2])
             col1.markdown(f"**<span style='color:#ffff00'>{p['pick']}</span>** {tag} vs {opp}", unsafe_allow_html=True)
             col2.markdown(f"<span style='color:{p['color']}'>{p['score']}/10 | +{p['edge']:.0f}%</span>", unsafe_allow_html=True)
@@ -833,12 +827,9 @@ if game_list:
         if away_b2b and not home_b2b:
             away_r = 0
             home_r = 1
-            
             home_i, _ = get_injury_score(home_t, injuries)
             away_i, _ = get_injury_score(away_t, injuries)
-            
             res = calc_12_factor_edge(home_t, away_t, home_r, away_r, home_i, away_i, 50)
-            
             top_picks.append({
                 'game': game_key,
                 'home_team': home_t,
@@ -896,68 +887,72 @@ def build_kalshi_ml_url(away_team, home_team):
 if "positions" not in st.session_state:
     st.session_state.positions = []
 
-# ========== ADD NEW POSITION ==========
+# ========== ADD NEW POSITION (FIXED) ==========
 st.subheader("➕ ADD NEW POSITION")
 
 game_options = ["Select a game..."] + [gk.replace("@", " @ ") for gk in game_list]
 selected_game = st.selectbox("🏀 Game", game_options, key="game_select")
 
-# Market type selector
-market_type = st.radio("📈 Market Type", ["Totals (Over/Under)", "Moneyline (Winner)"], horizontal=True, key="market_type")
-
-if market_type == "Totals (Over/Under)":
-    threshold_select = st.number_input("🎯 Threshold (check Kalshi for available)", min_value=180.0, max_value=280.0, value=225.5, step=3.0, key="threshold_select")
-
+# Show Kalshi link if game selected
 if selected_game != "Select a game...":
     parts = selected_game.replace(" @ ", "@").split("@")
     away_t = parts[0]
     home_t = parts[1]
-    if market_type == "Totals (Over/Under)":
-        kalshi_url = build_kalshi_totals_url(away_t, home_t)
-    else:
-        kalshi_url = build_kalshi_ml_url(away_t, home_t)
-    st.link_button(f"🔗 View {selected_game} on Kalshi", kalshi_url, use_container_width=True)
+    col_ml, col_tot = st.columns(2)
+    col_ml.link_button(f"🔗 ML on Kalshi", build_kalshi_ml_url(away_t, home_t), use_container_width=True)
+    col_tot.link_button(f"🔗 Totals on Kalshi", build_kalshi_totals_url(away_t, home_t), use_container_width=True)
 
+# FIXED: All inputs inside form, with proper conditional handling
 with st.form("add_position_form"):
+    market_type = st.radio("📈 Market Type", ["Moneyline (Winner)", "Totals (Over/Under)"], horizontal=True)
+    
     p1, p2, p3 = st.columns(3)
     
-    if market_type == "Totals (Over/Under)":
-        side = p1.selectbox("📊 Side", ["NO (Under)", "YES (Over)"], key="side_form")
+    # Build side options based on game selection
+    if selected_game != "Select a game...":
+        parts = selected_game.replace(" @ ", "@").split("@")
+        ml_options = [f"{parts[1]} (Home)", f"{parts[0]} (Away)"]
     else:
-        # For ML, show the two teams
-        if selected_game != "Select a game...":
-            parts = selected_game.replace(" @ ", "@").split("@")
-            side = p1.selectbox("📊 Pick Winner", [f"{parts[1]} (Home)", f"{parts[0]} (Away)"], key="side_form")
-        else:
-            side = p1.selectbox("📊 Pick Winner", ["Select game first"], key="side_form")
+        ml_options = ["Select game first"]
     
-    price_paid = p2.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1, key="price_form")
+    totals_options = ["NO (Under)", "YES (Over)"]
+    
+    # Show appropriate selector based on market type
+    if market_type == "Moneyline (Winner)":
+        side = p1.selectbox("📊 Pick Winner", ml_options)
+    else:
+        side = p1.selectbox("📊 Side", totals_options)
+    
+    price_paid = p2.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1)
     contracts = p3.number_input("📄 Contracts", min_value=1, max_value=1000, value=10, step=1)
     
-    add_manual = st.form_submit_button("✅ ADD POSITION (manual)", use_container_width=True)
+    # Threshold only for totals - always defined but only used for totals
+    threshold_select = st.number_input("🎯 Threshold (Totals only)", min_value=180.0, max_value=280.0, value=225.5, step=3.0, 
+                                       disabled=(market_type == "Moneyline (Winner)"))
     
-    if selected_game != "Select a game..." and add_manual:
+    add_btn = st.form_submit_button("✅ ADD POSITION", use_container_width=True)
+    
+    if add_btn and selected_game != "Select a game..." and side != "Select game first":
         game_key = selected_game.replace(" @ ", "@")
         parts = game_key.split("@")
         
-        if market_type == "Totals (Over/Under)":
+        if market_type == "Moneyline (Winner)":
+            team_pick = parts[1] if "Home" in side else parts[0]
+            st.session_state.positions.append({
+                'game': game_key,
+                'type': 'ml',
+                'pick': team_pick,
+                'price': price_paid,
+                'contracts': contracts,
+                'cost': round(price_paid * contracts / 100, 2)
+            })
+        else:
             side_clean = "NO" if "NO" in side else "YES"
             st.session_state.positions.append({
                 'game': game_key,
                 'type': 'totals',
                 'side': side_clean,
                 'threshold': threshold_select,
-                'price': price_paid,
-                'contracts': contracts,
-                'cost': round(price_paid * contracts / 100, 2)
-            })
-        else:
-            # ML position
-            team_pick = parts[1] if "Home" in side else parts[0]
-            st.session_state.positions.append({
-                'game': game_key,
-                'type': 'ml',
-                'pick': team_pick,
                 'price': price_paid,
                 'contracts': contracts,
                 'cost': round(price_paid * contracts / 100, 2)
@@ -977,7 +972,7 @@ if st.session_state.positions:
         price = pos.get('price', 50)
         contracts = pos.get('contracts', 1)
         cost = pos.get('cost', round(price * contracts / 100, 2))
-        pos_type = pos.get('type', 'totals')  # Default to totals for old positions
+        pos_type = pos.get('type', 'totals')
         
         potential_win = round((100 - price) * contracts / 100, 2)
         potential_loss = cost
@@ -989,7 +984,6 @@ if st.session_state.positions:
             game_status = "FINAL" if is_final else f"Q{g['period']} {g['clock']}"
             
             if pos_type == 'ml':
-                # MONEYLINE position
                 pick = pos.get('pick', '')
                 parts = game_key.split("@")
                 away_team = parts[0]
@@ -1047,7 +1041,7 @@ if st.session_state.positions:
                         </div>
                         <span style='color:{status_color};font-size:1.3em;font-weight:bold'>{status_label}</span>
                     </div>
-                    <div style='margin-top:10px;display:flex;gap:30px'>
+                    <div style='margin-top:10px;display:flex;gap:30px;flex-wrap:wrap'>
                         <span style='color:#aaa'>🎯 <b style="color:#fff">ML: {pick}</b></span>
                         <span style='color:#aaa'>💵 <b style="color:#fff">{contracts}x @ {price}¢</b> (${cost:.2f})</span>
                         <span style='color:#aaa'>📊 Score: <b style="color:#fff">{pick_score}-{opp_score}</b></span>
@@ -1058,7 +1052,6 @@ if st.session_state.positions:
                 """, unsafe_allow_html=True)
             
             else:
-                # TOTALS position
                 projected = round((total / mins) * 48) if mins > 0 else None
                 cushion = (pos['threshold'] - projected) if pos.get('side') == "NO" and projected else ((projected - pos['threshold']) if projected else 0)
                 
@@ -1107,7 +1100,7 @@ if st.session_state.positions:
                         </div>
                         <span style='color:{status_color};font-size:1.3em;font-weight:bold'>{status_label}</span>
                     </div>
-                    <div style='margin-top:10px;display:flex;gap:30px'>
+                    <div style='margin-top:10px;display:flex;gap:30px;flex-wrap:wrap'>
                         <span style='color:#aaa'>📊 <b style="color:#fff">{pos.get('side', 'NO')} {pos.get('threshold', 0)}</b></span>
                         <span style='color:#aaa'>💵 <b style="color:#fff">{contracts}x @ {price}¢</b> (${cost:.2f})</span>
                         <span style='color:#aaa'>📈 Proj: <b style="color:#fff">{projected if projected else '—'}</b></span>
@@ -1117,7 +1110,6 @@ if st.session_state.positions:
                 </div>
                 """, unsafe_allow_html=True)
             
-            # Buttons for both types
             btn1, btn2 = st.columns([3, 1])
             parts = game_key.split("@")
             if pos_type == 'ml':
@@ -1129,7 +1121,6 @@ if st.session_state.positions:
                 st.session_state.positions.pop(idx)
                 st.rerun()
         else:
-            # Game not started yet
             if pos_type == 'ml':
                 display_text = f"ML: {pos.get('pick', '?')}"
             else:
@@ -1211,5 +1202,4 @@ st.markdown("""
 st.divider()
 
 st.caption("💬 Have suggestions or found a bug? DM me.")
-
-st.caption("TESTER v1.1")
+st.caption("TESTER v1.2")
