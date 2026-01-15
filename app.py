@@ -1386,21 +1386,31 @@ st.subheader("🎯 CUSHION SCANNER")
 REFERENCE_THRESHOLD = 235.5  # placeholder; later can be live market line
 
 cs1, cs2 = st.columns([1, 1])
-cush_min = cs1.selectbox("Min minutes", [6, 9, 12, 18, 24], index=1, key="cush_min")
+cush_min = cs1.selectbox("Min minutes", [6, 9, 12, 18, 24], index=0, key="cush_min")  # Default to 6
 cush_side = cs2.selectbox("Side", ["NO", "YES"], key="cush_side")
 
-st.caption(f"📊 Reference Line: {REFERENCE_THRESHOLD} | Projecting remaining points (not full-game linear)")
+# Debug: show how many games and their status
+live_count = sum(1 for g in games.values() if g['status_type'] not in ["STATUS_FINAL", "STATUS_SCHEDULED"])
+st.caption(f"📊 Reference Line: {REFERENCE_THRESHOLD} | {len(games)} total games | {live_count} live")
 
 cush_results = []
 
 for gk, g in games.items():
     mins = get_minutes_played(g['period'], g['clock'], g['status_type'])
+    total = g['total']
     
-    # Hard gate: skip if < 6 mins or game is final
-    if mins < 6 or g['status_type'] == "STATUS_FINAL":
+    # Only skip FINAL games
+    if g['status_type'] == "STATUS_FINAL":
         continue
     
-    total = g['total']
+    # Skip if below minimum minutes (but don't skip 0 - show as waiting)
+    if mins < cush_min:
+        continue
+    
+    # Handle games with 0 minutes (not started)
+    if mins <= 0:
+        continue
+    
     pace = total / mins
     remaining_min = max(48 - mins, 1)
     projected_final = round(total + pace * remaining_min)
@@ -1411,12 +1421,6 @@ for gk, g in games.items():
     else:
         cushion = projected_final - REFERENCE_THRESHOLD
     
-    # Hard filters: must pass BOTH
-    if mins < cush_min:
-        continue
-    if cushion < 6:
-        continue
-    
     # SCORING: Cushion strength (0-4)
     if cushion >= 20:
         cushion_pts = 4
@@ -1424,10 +1428,10 @@ for gk, g in games.items():
         cushion_pts = 3
     elif cushion >= 6:
         cushion_pts = 2
-    elif cushion >= 2:
+    elif cushion >= 0:
         cushion_pts = 1
     else:
-        cushion_pts = 0
+        cushion_pts = 0  # Negative cushion = wrong side
     
     # SCORING: Time reliability (0-3) - penalize early game noise
     if mins >= 30:
@@ -1474,8 +1478,8 @@ for gk, g in games.items():
         'period': g['period'], 'clock': g['clock']
     })
 
-# Sort by edge score descending
-cush_results.sort(key=lambda x: x['edge_score'], reverse=True)
+# Sort by edge score descending, then by cushion
+cush_results.sort(key=lambda x: (x['edge_score'], x['cushion']), reverse=True)
 
 if cush_results:
     hcols = st.columns([2.5, 1, 1, 1, 1, 1, 1])
@@ -1501,8 +1505,10 @@ if cush_results:
             rcols[4].markdown(f"<span style='color:#88ff00'>**+{c:.0f}** 🟢</span>", unsafe_allow_html=True)
         elif c >= 6:
             rcols[4].markdown(f"<span style='color:#ffff00'>**+{c:.0f}** 🟡</span>", unsafe_allow_html=True)
+        elif c >= 0:
+            rcols[4].markdown(f"<span style='color:#ff8800'>+{c:.0f} ⚠️</span>", unsafe_allow_html=True)
         else:
-            rcols[4].markdown(f"<span style='color:#ff8800'>+{c:.0f}</span>", unsafe_allow_html=True)
+            rcols[4].markdown(f"<span style='color:#ff0000'>{c:.0f} ❌</span>", unsafe_allow_html=True)
         
         rcols[5].markdown(f"<span style='font-size:0.9em'>{r['pace_label']}<br>{r['pace']:.2f}/m</span>", unsafe_allow_html=True)
         
@@ -1516,9 +1522,9 @@ if cush_results:
         else:
             rcols[6].markdown(f"<span style='color:#ff0000'>{score}/10 🔴</span>", unsafe_allow_html=True)
     
-    st.caption(f"📊 {len(cush_results)} games | {cush_side} vs {REFERENCE_THRESHOLD} | Cushion ≥6 required | Score = Cushion(0-4) + Time(0-3) + Pace(0-3)")
+    st.caption(f"📊 {len(cush_results)} games | {cush_side} vs {REFERENCE_THRESHOLD} | Score = Cushion(0-4) + Time(0-3) + Pace(0-3)")
 else:
-    st.info(f"⚪ No games with {cush_side} cushion ≥6 vs {REFERENCE_THRESHOLD} and {cush_min}+ minutes played")
+    st.info(f"⚪ No live games with {cush_min}+ minutes played")
 
 st.divider()
 
