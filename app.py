@@ -122,22 +122,6 @@ with st.sidebar:
     
     st.divider()
     
-    st.subheader("📊 10-Factor ML System")
-    st.markdown("""
-    1. Rest Advantage  
-    2. Net Rating Edge  
-    3. Defense Ranking  
-    4. Home Court  
-    5. Injury Impact  
-    6. Travel Fatigue  
-    7. Home/Away Splits  
-    8. Division Rivalry  
-    9. Altitude (Denver)  
-    10. Team Quality
-    """)
-    
-    st.divider()
-    
     st.subheader("🎯 Totals Signal Tiers")
     st.markdown("""
     🟢 **STRONG NO/YES** → 8.0+ score  
