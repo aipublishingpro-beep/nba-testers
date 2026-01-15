@@ -189,7 +189,7 @@ with st.sidebar:
     """)
     
     st.divider()
-    st.caption("TESTER v1.4")
+    st.caption("TESTER v1.5")
 
 # ========== HELPER FUNCTIONS ==========
 def calc_distance(loc1, loc2):
@@ -779,7 +779,12 @@ yesterday_teams = yesterday_teams_raw.intersection(today_teams)
 
 # ========== HEADER ==========
 st.title("🎯 NBA EDGE FINDER")
-st.caption(f"TEST MODE | {auto_status} | Last update: {now.strftime('%I:%M:%S %p ET')} | v1.4")
+
+# Header row with status and refresh button
+hdr1, hdr2 = st.columns([4, 1])
+hdr1.caption(f"TEST MODE | {auto_status} | Last update: {now.strftime('%I:%M:%S %p ET')} | v1.5")
+if hdr2.button("🔄 Refresh", use_container_width=True):
+    st.rerun()
 
 # ========== 🏥 INJURY REPORT SECTION ==========
 st.subheader("🏥 INJURY REPORT - TODAY'S GAMES")
