@@ -1442,7 +1442,7 @@ st.subheader("🎯 CUSHION SCANNER")
 THRESHOLDS = [210.5, 215.5, 220.5, 225.5, 230.5, 235.5, 240.5, 245.5, 250.5, 255.5]
 
 cs1, cs2 = st.columns([1, 1])
-cush_min = cs1.selectbox("Min minutes", [6, 9, 12, 15, 18], index=2, key="cush_min")
+cush_min = cs1.selectbox("Min minutes", [6, 9, 12, 15, 18, 21], index=2, key="cush_min")
 cush_side = cs2.selectbox("Side", ["NO", "YES"], key="cush_side")
 
 live_count = sum(1 for g in games.values() if g['status_type'] not in ["STATUS_FINAL", "STATUS_SCHEDULED"])
