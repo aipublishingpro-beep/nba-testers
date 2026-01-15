@@ -12,13 +12,8 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ========== AUTO-REFRESH (Only after 7PM ET) ==========
-current_hour = datetime.now(pytz.timezone('US/Eastern')).hour
-if current_hour >= 19:
-    st.markdown("""<meta http-equiv="refresh" content="30">""", unsafe_allow_html=True)
-    auto_status = "🔄 Auto-refresh ON (30s)"
-else:
-    auto_status = "⏸️ Auto-refresh OFF (starts 7PM ET)"
+# ========== NO AUTO-REFRESH IN TEST MODE ==========
+auto_status = "⏸️ Auto-refresh DISABLED (Test Mode)"
 
 # ========== TEAM DATA ==========
 TEAM_ABBREVS = {
@@ -1097,6 +1092,434 @@ if game_list:
         st.info("⚪ No BLOWOUT RISK games today — no tired away team @ fresh home matchups")
 else:
     st.info("No games today")
+
+st.divider()
+
+# ========== KALSHI TEAM CODES ==========
+KALSHI_CODES = {
+    "Atlanta": "atl", "Boston": "bos", "Brooklyn": "bkn", "Charlotte": "cha",
+    "Chicago": "chi", "Cleveland": "cle", "Dallas": "dal", "Denver": "den",
+    "Detroit": "det", "Golden State": "gsw", "Houston": "hou", "Indiana": "ind",
+    "LA Clippers": "lac", "LA Lakers": "lal", "Memphis": "mem", "Miami": "mia",
+    "Milwaukee": "mil", "Minnesota": "min", "New Orleans": "nop", "New York": "nyk",
+    "Oklahoma City": "okc", "Orlando": "orl", "Philadelphia": "phi", "Phoenix": "phx",
+    "Portland": "por", "Sacramento": "sac", "San Antonio": "sas", "Toronto": "tor",
+    "Utah": "uta", "Washington": "was"
+}
+
+def build_kalshi_totals_url(away_team, home_team):
+    away_code = KALSHI_CODES.get(away_team, "xxx")
+    home_code = KALSHI_CODES.get(home_team, "xxx")
+    today = datetime.now(pytz.timezone('US/Eastern'))
+    date_str = today.strftime("%y%b%d").lower()
+    ticker = f"kxnbatotal-{date_str}{away_code}{home_code}"
+    return f"https://kalshi.com/markets/kxnbatotal/pro-basketball-total-points/{ticker}"
+
+def build_kalshi_ml_url(away_team, home_team):
+    away_code = KALSHI_CODES.get(away_team, "xxx")
+    home_code = KALSHI_CODES.get(home_team, "xxx")
+    today = datetime.now(pytz.timezone('US/Eastern'))
+    date_str = today.strftime("%y%b%d").lower()
+    ticker = f"kxnbagame-{date_str}{away_code}{home_code}"
+    return f"https://kalshi.com/markets/kxnbagame/pro-basketball-moneyline/{ticker}"
+
+if "positions" not in st.session_state:
+    st.session_state.positions = []
+
+# ========== ADD NEW POSITION ==========
+st.subheader("➕ ADD NEW POSITION")
+
+game_options = ["Select a game..."] + [gk.replace("@", " @ ") for gk in game_list]
+selected_game = st.selectbox("🏀 Game", game_options, key="game_select")
+
+if selected_game != "Select a game...":
+    parts = selected_game.replace(" @ ", "@").split("@")
+    away_t = parts[0]
+    home_t = parts[1]
+    col_ml, col_tot = st.columns(2)
+    col_ml.link_button(f"🔗 ML on Kalshi", build_kalshi_ml_url(away_t, home_t), use_container_width=True)
+    col_tot.link_button(f"🔗 Totals on Kalshi", build_kalshi_totals_url(away_t, home_t), use_container_width=True)
+
+with st.form("add_position_form"):
+    market_type = st.radio("📈 Market Type", ["Moneyline (Winner)", "Totals (Over/Under)"], horizontal=True)
+    
+    p1, p2, p3 = st.columns(3)
+    
+    if selected_game != "Select a game...":
+        parts = selected_game.replace(" @ ", "@").split("@")
+        ml_options = [f"{parts[1]} (Home)", f"{parts[0]} (Away)"]
+    else:
+        ml_options = ["Select game first"]
+    
+    totals_options = ["NO (Under)", "YES (Over)"]
+    
+    if market_type == "Moneyline (Winner)":
+        side = p1.selectbox("📊 Pick Winner", ml_options)
+    else:
+        side = p1.selectbox("📊 Side", totals_options)
+    
+    price_paid = p2.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1)
+    contracts = p3.number_input("📄 Contracts", min_value=1, max_value=1000, value=10, step=1)
+    
+    threshold_select = st.number_input("🎯 Threshold (Totals only)", min_value=180.0, max_value=280.0, value=225.5, step=3.0)
+    
+    add_btn = st.form_submit_button("✅ ADD POSITION", use_container_width=True)
+    
+    if add_btn and selected_game != "Select a game..." and side != "Select game first":
+        game_key = selected_game.replace(" @ ", "@")
+        parts = game_key.split("@")
+        
+        if market_type == "Moneyline (Winner)":
+            team_pick = parts[1] if "Home" in side else parts[0]
+            st.session_state.positions.append({
+                'game': game_key,
+                'type': 'ml',
+                'pick': team_pick,
+                'price': price_paid,
+                'contracts': contracts,
+                'cost': round(price_paid * contracts / 100, 2)
+            })
+        else:
+            side_clean = "NO" if "NO" in side else "YES"
+            st.session_state.positions.append({
+                'game': game_key,
+                'type': 'totals',
+                'side': side_clean,
+                'threshold': threshold_select,
+                'price': price_paid,
+                'contracts': contracts,
+                'cost': round(price_paid * contracts / 100, 2)
+            })
+        st.rerun()
+
+st.divider()
+
+# ========== ACTIVE POSITIONS ==========
+st.subheader("📈 ACTIVE POSITIONS")
+
+if st.session_state.positions:
+    for idx, pos in enumerate(st.session_state.positions):
+        game_key = pos['game']
+        g = games.get(game_key)
+        
+        price = pos.get('price', 50)
+        contracts = pos.get('contracts', 1)
+        cost = pos.get('cost', round(price * contracts / 100, 2))
+        pos_type = pos.get('type', 'totals')
+        
+        potential_win = round((100 - price) * contracts / 100, 2)
+        potential_loss = cost
+        
+        if g:
+            total = g['total']
+            mins = get_minutes_played(g['period'], g['clock'], g['status_type'])
+            is_final = g['status_type'] == "STATUS_FINAL"
+            game_status = "FINAL" if is_final else f"Q{g['period']} {g['clock']}"
+            
+            if pos_type == 'ml':
+                pick = pos.get('pick', '')
+                parts = game_key.split("@")
+                away_team = parts[0]
+                home_team = parts[1]
+                
+                home_score = g['home_score']
+                away_score = g['away_score']
+                pick_score = home_score if pick == home_team else away_score
+                opp_score = away_score if pick == home_team else home_score
+                lead = pick_score - opp_score
+                
+                if is_final:
+                    won = pick_score > opp_score
+                    if won:
+                        status_label = "✅ WON!"
+                        status_color = "#00ff00"
+                        pnl_display = f"+${potential_win:.2f}"
+                        pnl_color = "#00ff00"
+                    else:
+                        status_label = "❌ LOST"
+                        status_color = "#ff0000"
+                        pnl_display = f"-${potential_loss:.2f}"
+                        pnl_color = "#ff0000"
+                elif mins > 0:
+                    if lead >= 15:
+                        status_label = "🟢 CRUISING"
+                        status_color = "#00ff00"
+                    elif lead >= 8:
+                        status_label = "🟢 LEADING"
+                        status_color = "#00ff00"
+                    elif lead >= 1:
+                        status_label = "🟡 AHEAD"
+                        status_color = "#ffff00"
+                    elif lead >= -5:
+                        status_label = "🟠 CLOSE"
+                        status_color = "#ff8800"
+                    else:
+                        status_label = "🔴 BEHIND"
+                        status_color = "#ff0000"
+                    pnl_display = f"Win: +${potential_win:.2f}"
+                    pnl_color = "#888888"
+                else:
+                    status_label = "⏳ WAITING"
+                    status_color = "#888888"
+                    lead = 0
+                    pnl_display = f"Win: +${potential_win:.2f}"
+                    pnl_color = "#888888"
+                
+                st.markdown(f"""
+                <div style='background:linear-gradient(135deg,#1a1a2e,#16213e);padding:15px;border-radius:10px;border:2px solid {status_color};margin-bottom:10px'>
+                    <div style='display:flex;justify-content:space-between;align-items:center'>
+                        <div>
+                            <span style='color:#fff;font-size:1.2em;font-weight:bold'>{game_key.replace('@', ' @ ')}</span>
+                            <span style='color:#888;margin-left:10px'>{game_status}</span>
+                        </div>
+                        <span style='color:{status_color};font-size:1.3em;font-weight:bold'>{status_label}</span>
+                    </div>
+                    <div style='margin-top:10px;display:flex;gap:30px;flex-wrap:wrap'>
+                        <span style='color:#aaa'>🎯 <b style="color:#fff">ML: {pick}</b></span>
+                        <span style='color:#aaa'>💵 <b style="color:#fff">{contracts}x @ {price}¢</b> (${cost:.2f})</span>
+                        <span style='color:#aaa'>📊 Score: <b style="color:#fff">{pick_score}-{opp_score}</b></span>
+                        <span style='color:#aaa'>📈 Lead: <b style="color:{status_color}">{lead:+d}</b></span>
+                        <span style='color:{pnl_color}'>{pnl_display}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            else:
+                projected = round((total / mins) * 48) if mins > 0 else None
+                cushion = (pos['threshold'] - projected) if pos.get('side') == "NO" and projected else ((projected - pos['threshold']) if projected else 0)
+                
+                if is_final:
+                    won = (total < pos['threshold']) if pos.get('side') == "NO" else (total > pos['threshold'])
+                    if won:
+                        status_label = "✅ WON!"
+                        status_color = "#00ff00"
+                        pnl_display = f"+${potential_win:.2f}"
+                        pnl_color = "#00ff00"
+                    else:
+                        status_label = "❌ LOST"
+                        status_color = "#ff0000"
+                        pnl_display = f"-${potential_loss:.2f}"
+                        pnl_color = "#ff0000"
+                elif projected:
+                    if cushion >= 15:
+                        status_label = "🟢 VERY SAFE"
+                        status_color = "#00ff00"
+                    elif cushion >= 8:
+                        status_label = "🟢 LOOKING GOOD"
+                        status_color = "#00ff00"
+                    elif cushion >= 3:
+                        status_label = "🟡 ON TRACK"
+                        status_color = "#ffff00"
+                    elif cushion >= -3:
+                        status_label = "🟠 WARNING"
+                        status_color = "#ff8800"
+                    else:
+                        status_label = "🔴 AT RISK"
+                        status_color = "#ff0000"
+                    pnl_display = f"Win: +${potential_win:.2f}"
+                    pnl_color = "#888888"
+                else:
+                    status_label = "⏳ WAITING"
+                    status_color = "#888888"
+                    pnl_display = f"Win: +${potential_win:.2f}"
+                    pnl_color = "#888888"
+                
+                st.markdown(f"""
+                <div style='background:linear-gradient(135deg,#1a1a2e,#16213e);padding:15px;border-radius:10px;border:2px solid {status_color};margin-bottom:10px'>
+                    <div style='display:flex;justify-content:space-between;align-items:center'>
+                        <div>
+                            <span style='color:#fff;font-size:1.2em;font-weight:bold'>{game_key.replace('@', ' @ ')}</span>
+                            <span style='color:#888;margin-left:10px'>{game_status}</span>
+                        </div>
+                        <span style='color:{status_color};font-size:1.3em;font-weight:bold'>{status_label}</span>
+                    </div>
+                    <div style='margin-top:10px;display:flex;gap:30px;flex-wrap:wrap'>
+                        <span style='color:#aaa'>📊 <b style="color:#fff">{pos.get('side', 'NO')} {pos.get('threshold', 0)}</b></span>
+                        <span style='color:#aaa'>💵 <b style="color:#fff">{contracts}x @ {price}¢</b> (${cost:.2f})</span>
+                        <span style='color:#aaa'>📈 Proj: <b style="color:#fff">{projected if projected else '—'}</b></span>
+                        <span style='color:#aaa'>🎯 Cushion: <b style="color:{status_color}">{cushion:+.0f}</b></span>
+                        <span style='color:{pnl_color}'>{pnl_display}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            btn1, btn2 = st.columns([3, 1])
+            parts = game_key.split("@")
+            if pos_type == 'ml':
+                kalshi_url = build_kalshi_ml_url(parts[0], parts[1])
+            else:
+                kalshi_url = build_kalshi_totals_url(parts[0], parts[1])
+            btn1.link_button(f"🔗 View on Kalshi", kalshi_url, use_container_width=True)
+            if btn2.button("🗑️ Remove", key=f"del_{idx}"):
+                st.session_state.positions.pop(idx)
+                st.rerun()
+        else:
+            if pos_type == 'ml':
+                display_text = f"ML: {pos.get('pick', '?')}"
+            else:
+                display_text = f"{pos.get('side', 'NO')} {pos.get('threshold', 0)}"
+            
+            st.markdown(f"""
+            <div style='background:#1a1a2e;padding:15px;border-radius:10px;border:1px solid #444;margin-bottom:10px'>
+                <span style='color:#888'>{game_key.replace('@', ' @ ')} — {display_text} — {contracts}x @ {price}¢</span>
+                <span style='color:#666;margin-left:15px'>⏳ Game not started</span>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("🗑️ Remove", key=f"del_{idx}"):
+                st.session_state.positions.pop(idx)
+                st.rerun()
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("🗑️ Clear All Positions", use_container_width=True):
+        st.session_state.positions = []
+        st.rerun()
+else:
+    st.info("No positions tracked — use the form above to add your first position")
+
+st.divider()
+
+# ========== CUSHION SCANNER ==========
+st.subheader("🎯 CUSHION SCANNER")
+
+cs1, cs2 = st.columns([1, 1])
+cush_min = cs1.selectbox("Min minutes", [6, 9, 12, 18, 24], index=1, key="cush_min")
+cush_side = cs2.selectbox("Side", ["NO", "YES"], key="cush_side")
+
+thresholds = [225.5, 230.5, 235.5, 240.5, 245.5]
+cush_data = []
+
+for gk, g in games.items():
+    mins = get_minutes_played(g['period'], g['clock'], g['status_type'])
+    if mins >= cush_min:
+        proj = round((g['total'] / mins) * 48) if mins > 0 else 0
+        cush_data.append({"game": gk, "proj": proj})
+
+if cush_data:
+    good_games = []
+    for cd in cush_data:
+        has_edge = False
+        for t in thresholds:
+            c = (t - cd['proj']) if cush_side == "NO" else (cd['proj'] - t)
+            if c >= 10:
+                has_edge = True
+                break
+        if has_edge:
+            gk = cd['game']
+            g = games.get(gk, {})
+            away_team = g.get('away_team', '')
+            home_team = g.get('home_team', '')
+            
+            away_b2b = away_team in yesterday_teams
+            home_b2b = home_team in yesterday_teams
+            
+            fatigue_score = 0
+            if away_b2b:
+                fatigue_score += 2
+            if home_b2b and away_b2b:
+                fatigue_score += 1
+            if home_team == "Denver":
+                fatigue_score += 1
+            if away_b2b and not home_b2b and cush_side == "NO":
+                fatigue_score -= 2
+            
+            mins = get_minutes_played(g.get('period', 0), g.get('clock', ''), g.get('status_type', ''))
+            pace_score = 0
+            pace_val = 0
+            pace_label = ""
+            if mins >= 6:
+                pace_val = g.get('total', 0) / mins
+                if pace_val < 4.5:
+                    pace_score = 2 if cush_side == "NO" else -1
+                    pace_label = "🟢 SLOW"
+                elif pace_val < 4.8:
+                    pace_score = 1 if cush_side == "NO" else 0
+                    pace_label = "🟡 AVG"
+                elif pace_val < 5.2:
+                    pace_score = 0 if cush_side == "NO" else 1
+                    pace_label = "🟠 FAST"
+                else:
+                    pace_score = -1 if cush_side == "NO" else 2
+                    pace_label = "🔴 SHOT"
+            
+            mid_cushion = (235.5 - cd['proj']) if cush_side == "NO" else (cd['proj'] - 235.5)
+            cushion_score = 3 if mid_cushion >= 20 else (2 if mid_cushion >= 10 else (1 if mid_cushion >= 5 else 0))
+            
+            total_score = max(0, min(10, fatigue_score + pace_score + cushion_score))
+            cd['edge_score'] = total_score
+            cd['pace_val'] = pace_val
+            cd['pace_label'] = pace_label
+            cd['mins'] = mins
+            good_games.append(cd)
+    
+    if good_games:
+        hcols = st.columns([2, 1] + [1]*len(thresholds) + [1, 1])
+        hcols[0].markdown("**Game**")
+        hcols[1].markdown("**Proj**")
+        for i, t in enumerate(thresholds):
+            hcols[i+2].markdown(f"**{t}**")
+        hcols[-2].markdown("**Pace**")
+        hcols[-1].markdown("**Score**")
+        
+        for cd in good_games:
+            rcols = st.columns([2, 1] + [1]*len(thresholds) + [1, 1])
+            rcols[0].write(cd['game'].replace("@", " @ "))
+            rcols[1].write(f"{cd['proj']}")
+            for i, t in enumerate(thresholds):
+                c = (t - cd['proj']) if cush_side == "NO" else (cd['proj'] - t)
+                if c >= 20:
+                    rcols[i+2].markdown(f"<span style='color:#00ff00'>**+{c:.0f}** 🟢</span>", unsafe_allow_html=True)
+                elif c >= 10:
+                    rcols[i+2].markdown(f"<span style='color:#ffff00'>**+{c:.0f}** 🟡</span>", unsafe_allow_html=True)
+                else:
+                    rcols[i+2].markdown(f"<span style='color:#666'>—</span>", unsafe_allow_html=True)
+            
+            if cd['pace_label']:
+                rcols[-2].markdown(f"<span style='font-size:0.85em'>{cd['pace_label']}<br>{cd['pace_val']:.1f}/m</span>", unsafe_allow_html=True)
+            else:
+                rcols[-2].markdown("—")
+            
+            score = cd['edge_score']
+            if score >= 8:
+                rcols[-1].markdown(f"<span style='color:#00ff00;font-weight:bold'>**{score}/10** 🟢</span>", unsafe_allow_html=True)
+            elif score >= 6:
+                rcols[-1].markdown(f"<span style='color:#ffff00;font-weight:bold'>**{score}/10** 🟡</span>", unsafe_allow_html=True)
+            else:
+                rcols[-1].markdown(f"<span style='color:#ff0000'>{score}/10 🔴</span>", unsafe_allow_html=True)
+    else:
+        st.info("⚪ No games with +10 or more cushion right now")
+else:
+    st.info(f"No games with {cush_min}+ minutes played yet")
+
+st.divider()
+
+# ========== PACE SCANNER ==========
+st.subheader("🔥 PACE SCANNER")
+
+pace_data = []
+for gk, g in games.items():
+    mins = get_minutes_played(g['period'], g['clock'], g['status_type'])
+    if mins >= 6:
+        pace = round(g['total'] / mins, 2)
+        proj = round(pace * 48)
+        pace_data.append({"game": gk, "pace": pace, "proj": proj, "total": g['total'], "mins": mins,
+                         "period": g['period'], "clock": g['clock'], "final": g['status_type'] == "STATUS_FINAL"})
+
+pace_data.sort(key=lambda x: x['pace'])
+
+if pace_data:
+    for p in pace_data:
+        if p['pace'] < 4.5:
+            lbl, clr = "🟢 SLOW", "#00ff00"
+        elif p['pace'] < 4.8:
+            lbl, clr = "🟡 AVG", "#ffff00"
+        elif p['pace'] < 5.2:
+            lbl, clr = "🟠 FAST", "#ff8800"
+        else:
+            lbl, clr = "🔴 SHOOTOUT", "#ff0000"
+        status = "FINAL" if p['final'] else f"Q{p['period']} {p['clock']}"
+        st.markdown(f"**{p['game'].replace('@', ' @ ')}** — {p['total']} pts in {p['mins']:.0f} min — **{p['pace']}/min** <span style='color:{clr}'>**{lbl}**</span> — Proj: **{p['proj']}** — {status}", unsafe_allow_html=True)
+else:
+    st.info("No games with 6+ minutes played yet")
 
 st.divider()
 
