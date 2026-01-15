@@ -1125,8 +1125,65 @@ def build_kalshi_ml_url(away_team, home_team):
     ticker = f"kxnbagame-{date_str}{away_code}{home_code}"
     return f"https://kalshi.com/markets/kxnbagame/pro-basketball-moneyline/{ticker}"
 
+# ========== POSITION PERSISTENCE VIA URL ==========
+def encode_positions(positions):
+    """Encode positions to URL-safe string"""
+    if not positions:
+        return ""
+    parts = []
+    for p in positions:
+        if p.get('type') == 'ml':
+            # Format: game|ml|pick|price|contracts
+            parts.append(f"{p['game']}|ml|{p['pick']}|{p['price']}|{p['contracts']}")
+        else:
+            # Format: game|totals|side|threshold|price|contracts
+            parts.append(f"{p['game']}|totals|{p.get('side','NO')}|{p.get('threshold',225.5)}|{p['price']}|{p['contracts']}")
+    return ",".join(parts)
+
+def decode_positions(encoded):
+    """Decode URL string to positions list"""
+    if not encoded:
+        return []
+    positions = []
+    try:
+        for part in encoded.split(","):
+            fields = part.split("|")
+            if len(fields) >= 5 and fields[1] == "ml":
+                positions.append({
+                    'game': fields[0],
+                    'type': 'ml',
+                    'pick': fields[2],
+                    'price': int(fields[3]),
+                    'contracts': int(fields[4]),
+                    'cost': round(int(fields[3]) * int(fields[4]) / 100, 2)
+                })
+            elif len(fields) >= 6 and fields[1] == "totals":
+                positions.append({
+                    'game': fields[0],
+                    'type': 'totals',
+                    'side': fields[2],
+                    'threshold': float(fields[3]),
+                    'price': int(fields[4]),
+                    'contracts': int(fields[5]),
+                    'cost': round(int(fields[4]) * int(fields[5]) / 100, 2)
+                })
+    except:
+        pass
+    return positions
+
+# Load positions from URL on startup
 if "positions" not in st.session_state:
-    st.session_state.positions = []
+    params = st.query_params
+    encoded = params.get("pos", "")
+    st.session_state.positions = decode_positions(encoded)
+
+def save_positions_to_url():
+    """Save current positions to URL"""
+    encoded = encode_positions(st.session_state.positions)
+    if encoded:
+        st.query_params["pos"] = encoded
+    elif "pos" in st.query_params:
+        del st.query_params["pos"]
 
 # ========== ADD NEW POSITION ==========
 st.subheader("➕ ADD NEW POSITION")
@@ -1141,19 +1198,18 @@ if selected_game != "Select a game...":
     col_ml, col_tot = st.columns(2)
     col_ml.link_button(f"🔗 ML on Kalshi", build_kalshi_ml_url(away_t, home_t), use_container_width=True)
     col_tot.link_button(f"🔗 Totals on Kalshi", build_kalshi_totals_url(away_t, home_t), use_container_width=True)
+    
+    # Build options based on selected game
+    ml_options = [f"{parts[1]} (Home)", f"{parts[0]} (Away)"]
+else:
+    ml_options = ["Select game first"]
+
+totals_options = ["NO (Under)", "YES (Over)"]
 
 with st.form("add_position_form"):
     market_type = st.radio("📈 Market Type", ["Moneyline (Winner)", "Totals (Over/Under)"], horizontal=True)
     
     p1, p2, p3 = st.columns(3)
-    
-    if selected_game != "Select a game...":
-        parts = selected_game.replace(" @ ", "@").split("@")
-        ml_options = [f"{parts[1]} (Home)", f"{parts[0]} (Away)"]
-    else:
-        ml_options = ["Select game first"]
-    
-    totals_options = ["NO (Under)", "YES (Over)"]
     
     if market_type == "Moneyline (Winner)":
         side = p1.selectbox("📊 Pick Winner", ml_options)
