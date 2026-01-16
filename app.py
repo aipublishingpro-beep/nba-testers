@@ -351,9 +351,9 @@ else:
     ml_options = ["Select game first"]
 
 if market_type == "Moneyline (Winner)":
-    side = p1.selectbox("📊 Pick Winner", ml_options)
+    side = p1.selectbox("📊 Pick Winner", ml_options, key="ml_picker")
 else:
-    side = p1.selectbox("📊 Side", ["NO (Under)", "YES (Over)"])
+    side = p1.selectbox("📊 Side", ["NO (Under)", "YES (Over)"], key="totals_picker")
 
 price_paid = p2.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1)
 contracts = p3.number_input("📄 Contracts", min_value=1, value=st.session_state.default_contracts, step=1)
