@@ -32,6 +32,12 @@ if 'positions' not in st.session_state:
     st.session_state.positions = load_positions_from_url()
 if 'default_contracts' not in st.session_state:
     st.session_state.default_contracts = 1
+if "selected_side" not in st.session_state:
+    st.session_state.selected_side = "NO"
+if "selected_threshold" not in st.session_state:
+    st.session_state.selected_threshold = 225.5
+if "selected_ml_pick" not in st.session_state:
+    st.session_state.selected_ml_pick = None
 
 if st.session_state.auto_refresh:
     st.markdown('<meta http-equiv="refresh" content="30">', unsafe_allow_html=True)
@@ -228,12 +234,12 @@ with st.sidebar:
     st.subheader("🔥 PACE LABELS")
     st.markdown("🟢 **SLOW** → Under 4.5/min\n\n🟡 **AVG** → 4.5 - 4.8/min\n\n🟠 **FAST** → 4.8 - 5.2/min\n\n🔴 **SHOOTOUT** → Over 5.2/min")
     st.divider()
-    st.caption("DEMO v15.16")
+    st.caption("DEMO v15.17")
 
 # ========== HEADER ==========
 st.title("🏀 NBA EDGE FINDER (DEMO)")
 hdr1, hdr2, hdr3 = st.columns([3, 1, 1])
-hdr1.caption(f"{auto_status} | Last update: {now.strftime('%I:%M:%S %p ET')} | DEMO v15.16")
+hdr1.caption(f"{auto_status} | Last update: {now.strftime('%I:%M:%S %p ET')} | DEMO v15.17")
 
 if hdr2.button("🔄 Auto" if not st.session_state.auto_refresh else "⏹️ Stop", use_container_width=True):
     st.session_state.auto_refresh = not st.session_state.auto_refresh
@@ -309,20 +315,32 @@ market_type = st.radio("Market:", ["Totals (Over/Under)", "Moneyline (Winner)"],
 
 st.write("**Step 2: Make Your Pick**")
 if market_type == "Totals (Over/Under)":
-    # ALWAYS SHOW YES/NO FOR TOTALS
-    yes_no = st.radio("YES (Over) or NO (Under)?", ["NO (Under)", "YES (Over)"], horizontal=True)
-    side = yes_no
-    threshold_select = st.number_input("🎯 Threshold", min_value=180.0, max_value=280.0, value=225.5, step=0.5)
+    yes_no = st.radio(
+        "YES (Over) or NO (Under)?",
+        ["NO (Under)", "YES (Over)"],
+        horizontal=True,
+        key="totals_side_radio"
+    )
+    st.session_state.selected_side = "NO" if "NO" in yes_no else "YES"
+    st.session_state.selected_threshold = st.number_input(
+        "🎯 Threshold",
+        min_value=180.0,
+        max_value=280.0,
+        value=st.session_state.selected_threshold,
+        step=0.5
+    )
 else:
-    # MONEYLINE - PICK TEAM
-    threshold_select = 0
     if selected_game != "Select a game...":
         parts = selected_game.replace(" @ ", "@").split("@")
-        team_pick = st.radio("Pick Winner:", [f"{parts[1]} (Home)", f"{parts[0]} (Away)"], horizontal=True)
-        side = team_pick
+        st.session_state.selected_ml_pick = st.radio(
+            "Pick Winner:",
+            [parts[1], parts[0]],
+            horizontal=True,
+            key="ml_pick_radio"
+        )
     else:
+        st.session_state.selected_ml_pick = None
         st.warning("⚠️ Select a game first to pick a team")
-        side = None
 
 st.write("**Step 3: Enter Position Details**")
 c1, c2 = st.columns(2)
@@ -330,19 +348,38 @@ price_paid = c1.number_input("💵 Price (¢)", min_value=1, max_value=99, value
 contracts = c2.number_input("📄 Contracts", min_value=1, value=1, step=1)
 
 if st.button("✅ ADD POSITION", use_container_width=True, type="primary"):
-    if selected_game != "Select a game..." and side is not None:
+    if selected_game == "Select a game...":
+        st.error("Select a game first!")
+    else:
         game_key = selected_game.replace(" @ ", "@")
         parts = game_key.split("@")
+
         if market_type == "Moneyline (Winner)":
-            team_pick = parts[1] if "Home" in side else parts[0]
-            st.session_state.positions.append({'game': game_key, 'type': 'ml', 'pick': team_pick, 'price': price_paid, 'contracts': contracts, 'cost': round(price_paid * contracts / 100, 2)})
+            if st.session_state.selected_ml_pick is None:
+                st.error("Pick a team first!")
+            else:
+                st.session_state.positions.append({
+                    "game": game_key,
+                    "type": "ml",
+                    "pick": st.session_state.selected_ml_pick,
+                    "price": price_paid,
+                    "contracts": contracts,
+                    "cost": round(price_paid * contracts / 100, 2)
+                })
+                save_positions_to_url(st.session_state.positions)
+                st.rerun()
         else:
-            side_clean = "NO" if "NO" in side else "YES"
-            st.session_state.positions.append({'game': game_key, 'type': 'totals', 'side': side_clean, 'threshold': threshold_select, 'price': price_paid, 'contracts': contracts, 'cost': round(price_paid * contracts / 100, 2)})
-        save_positions_to_url(st.session_state.positions)
-        st.rerun()
-    else:
-        st.error("Select a game and make your pick first!")
+            st.session_state.positions.append({
+                "game": game_key,
+                "type": "totals",
+                "side": st.session_state.selected_side,
+                "threshold": st.session_state.selected_threshold,
+                "price": price_paid,
+                "contracts": contracts,
+                "cost": round(price_paid * contracts / 100, 2)
+            })
+            save_positions_to_url(st.session_state.positions)
+            st.rerun()
 
 st.divider()
 
@@ -482,4 +519,4 @@ else:
 
 st.divider()
 st.caption("⚠️ For entertainment only. Not financial advice.")
-st.caption("DEMO v15.16 - Public Version")
+st.caption("DEMO v15.17 - Public Version")
