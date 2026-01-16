@@ -7,9 +7,7 @@ import base64
 
 st.set_page_config(page_title="NBA Edge Finder (DEMO)", page_icon="🏀", layout="wide")
 
-# ========== URL-BASED PERSISTENCE ==========
 def save_positions_to_url(positions):
-    """Encode positions to URL query param"""
     if positions:
         json_str = json.dumps(positions)
         encoded = base64.b64encode(json_str.encode()).decode()
@@ -19,7 +17,6 @@ def save_positions_to_url(positions):
             del st.query_params["p"]
 
 def load_positions_from_url():
-    """Decode positions from URL query param"""
     if "p" in st.query_params:
         try:
             encoded = st.query_params["p"]
@@ -29,13 +26,12 @@ def load_positions_from_url():
             return []
     return []
 
-# ========== AUTO-REFRESH SETUP ==========
 if 'auto_refresh' not in st.session_state:
     st.session_state.auto_refresh = False
-
-# Load positions from URL on startup
 if 'positions' not in st.session_state:
     st.session_state.positions = load_positions_from_url()
+if 'default_contracts' not in st.session_state:
+    st.session_state.default_contracts = 1
 
 if st.session_state.auto_refresh:
     st.markdown('<meta http-equiv="refresh" content="30">', unsafe_allow_html=True)
@@ -43,21 +39,6 @@ if st.session_state.auto_refresh:
 else:
     auto_status = "⏸️ Auto-refresh OFF"
 
-st.markdown("""
-<style>
-.stLinkButton > a {
-    background-color: #00aa00 !important;
-    border-color: #00aa00 !important;
-    color: white !important;
-}
-.stLinkButton > a:hover {
-    background-color: #00cc00 !important;
-    border-color: #00cc00 !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# ========== KALSHI TEAM CODES ==========
 KALSHI_CODES = {
     "Atlanta": "atl", "Boston": "bos", "Brooklyn": "bkn", "Charlotte": "cha",
     "Chicago": "chi", "Cleveland": "cle", "Dallas": "dal", "Denver": "den",
@@ -69,26 +50,6 @@ KALSHI_CODES = {
     "Utah": "uta", "Washington": "was"
 }
 
-def build_kalshi_totals_url(away_team, home_team):
-    away_code = KALSHI_CODES.get(away_team, "xxx")
-    home_code = KALSHI_CODES.get(home_team, "xxx")
-    today = datetime.now(pytz.timezone('US/Eastern'))
-    date_str = today.strftime("%y%b%d").lower()
-    ticker = f"kxnbatotal-{date_str}{away_code}{home_code}"
-    return f"https://kalshi.com/markets/kxnbatotal/pro-basketball-total-points/{ticker}"
-
-def build_kalshi_ml_url(away_team, home_team):
-    away_code = KALSHI_CODES.get(away_team, "xxx")
-    home_code = KALSHI_CODES.get(home_team, "xxx")
-    today = datetime.now(pytz.timezone('US/Eastern'))
-    date_str = today.strftime("%y%b%d").lower()
-    ticker = f"kxnbagame-{date_str}{away_code}{home_code}"
-    return f"https://kalshi.com/markets/kxnbagame/pro-basketball-moneyline/{ticker}"
-
-if 'default_contracts' not in st.session_state:
-    st.session_state.default_contracts = 1
-
-# ========== TEAM DATA ==========
 TEAM_ABBREVS = {
     "Atlanta Hawks": "Atlanta", "Boston Celtics": "Boston", "Brooklyn Nets": "Brooklyn",
     "Charlotte Hornets": "Charlotte", "Chicago Bulls": "Chicago", "Cleveland Cavaliers": "Cleveland",
@@ -122,30 +83,21 @@ STAR_PLAYERS = {
     "Toronto": ["Scottie Barnes", "RJ Barrett"], "Utah": ["Lauri Markkanen"], "Washington": ["Jordan Poole"]
 }
 
-# ========== SIDEBAR ==========
-with st.sidebar:
-    st.header("🏀 NBA EDGE FINDER")
-    st.caption("Public Demo Version")
-    st.divider()
-    st.subheader("📖 SIGNAL TIERS")
-    st.markdown("""
-    🟢 **STRONG** → High confidence  
-    🔵 **SIGNAL** → Good opportunity  
-    🟡 **LEAN** → Slight edge  
-    ⚪ **TOSS-UP** → No clear edge  
-    🔴 **SKIP** → Avoid
-    """)
-    st.divider()
-    st.subheader("🔥 PACE LABELS")
-    st.markdown("""
-    🟢 **SLOW** → Under 4.5/min  
-    🟡 **AVG** → 4.5 - 4.8/min  
-    🟠 **FAST** → 4.8 - 5.2/min  
-    🔴 **SHOOTOUT** → Over 5.2/min
-    """)
-    st.divider()
-    st.caption("DEMO v15.15")
-    st.caption("💾 Positions saved in URL")
+def build_kalshi_totals_url(away_team, home_team):
+    away_code = KALSHI_CODES.get(away_team, "xxx")
+    home_code = KALSHI_CODES.get(home_team, "xxx")
+    today = datetime.now(pytz.timezone('US/Eastern'))
+    date_str = today.strftime("%y%b%d").lower()
+    ticker = f"kxnbatotal-{date_str}{away_code}{home_code}"
+    return f"https://kalshi.com/markets/kxnbatotal/pro-basketball-total-points/{ticker}"
+
+def build_kalshi_ml_url(away_team, home_team):
+    away_code = KALSHI_CODES.get(away_team, "xxx")
+    home_code = KALSHI_CODES.get(home_team, "xxx")
+    today = datetime.now(pytz.timezone('US/Eastern'))
+    date_str = today.strftime("%y%b%d").lower()
+    ticker = f"kxnbagame-{date_str}{away_code}{home_code}"
+    return f"https://kalshi.com/markets/kxnbagame/pro-basketball-moneyline/{ticker}"
 
 def fetch_espn_scores():
     url = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
@@ -265,10 +217,23 @@ for game_key in games.keys():
     today_teams.add(parts[1])
 yesterday_teams = yesterday_teams_raw.intersection(today_teams)
 
+# ========== SIDEBAR ==========
+with st.sidebar:
+    st.header("🏀 NBA EDGE FINDER")
+    st.caption("Public Demo Version")
+    st.divider()
+    st.subheader("📖 SIGNAL TIERS")
+    st.markdown("🟢 **STRONG** → High confidence\n\n🔵 **SIGNAL** → Good opportunity\n\n🟡 **LEAN** → Slight edge\n\n⚪ **TOSS-UP** → No clear edge\n\n🔴 **SKIP** → Avoid")
+    st.divider()
+    st.subheader("🔥 PACE LABELS")
+    st.markdown("🟢 **SLOW** → Under 4.5/min\n\n🟡 **AVG** → 4.5 - 4.8/min\n\n🟠 **FAST** → 4.8 - 5.2/min\n\n🔴 **SHOOTOUT** → Over 5.2/min")
+    st.divider()
+    st.caption("DEMO v15.16")
+
 # ========== HEADER ==========
 st.title("🏀 NBA EDGE FINDER (DEMO)")
 hdr1, hdr2, hdr3 = st.columns([3, 1, 1])
-hdr1.caption(f"{auto_status} | Last update: {now.strftime('%I:%M:%S %p ET')} | DEMO v15.15")
+hdr1.caption(f"{auto_status} | Last update: {now.strftime('%I:%M:%S %p ET')} | DEMO v15.16")
 
 if hdr2.button("🔄 Auto" if not st.session_state.auto_refresh else "⏹️ Stop", use_container_width=True):
     st.session_state.auto_refresh = not st.session_state.auto_refresh
@@ -277,7 +242,7 @@ if hdr2.button("🔄 Auto" if not st.session_state.auto_refresh else "⏹️ Sto
 if hdr3.button("🔄 Refresh", use_container_width=True):
     st.rerun()
 
-# ========== 🏥 INJURY REPORT ==========
+# ========== INJURY REPORT ==========
 st.subheader("🏥 INJURY REPORT - TODAY'S GAMES")
 
 if game_list:
@@ -317,7 +282,6 @@ else:
 
 st.divider()
 
-# ========== B2B INFO ==========
 if yesterday_teams:
     st.info(f"📅 **Back-to-Back Teams Today**: {', '.join(sorted(yesterday_teams))}")
 else:
@@ -329,7 +293,7 @@ st.divider()
 st.subheader("➕ TRACK A POSITION")
 
 game_options = ["Select a game..."] + [gk.replace("@", " @ ") for gk in game_list]
-selected_game = st.selectbox("🏀 Game", game_options, key="game_select")
+selected_game = st.selectbox("🏀 Game", game_options)
 
 if selected_game != "Select a game...":
     parts = selected_game.replace(" @ ", "@").split("@")
@@ -338,31 +302,35 @@ if selected_game != "Select a game...":
     col_ml.link_button(f"🔗 ML on Kalshi", build_kalshi_ml_url(away_t, home_t), use_container_width=True)
     col_tot.link_button(f"🔗 Totals on Kalshi", build_kalshi_totals_url(away_t, home_t), use_container_width=True)
 
-# ========== MARKET TYPE AND SIDE SELECTION ==========
-market_type = st.radio("📈 Market Type", ["Moneyline (Winner)", "Totals (Over/Under)"], horizontal=True, key="mkt_type")
+# SIMPLE APPROACH - ALWAYS SHOW BOTH OPTIONS
+st.write("---")
+st.write("**Step 1: Choose Market Type**")
+market_type = st.radio("Market:", ["Totals (Over/Under)", "Moneyline (Winner)"], horizontal=True)
 
-p1, p2, p3 = st.columns(3)
-
-price_paid = p2.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1)
-contracts = p3.number_input("📄 Contracts", min_value=1, value=st.session_state.default_contracts, step=1)
-
-# YES/NO selection for Totals - using radio buttons (more visible)
+st.write("**Step 2: Make Your Pick**")
 if market_type == "Totals (Over/Under)":
-    st.write("**📊 Select YES (Over) or NO (Under):**")
-    side = st.radio("Your pick:", ["NO (Under)", "YES (Over)"], horizontal=True, key="yes_no_pick")
+    # ALWAYS SHOW YES/NO FOR TOTALS
+    yes_no = st.radio("YES (Over) or NO (Under)?", ["NO (Under)", "YES (Over)"], horizontal=True)
+    side = yes_no
     threshold_select = st.number_input("🎯 Threshold", min_value=180.0, max_value=280.0, value=225.5, step=0.5)
 else:
+    # MONEYLINE - PICK TEAM
     threshold_select = 0
     if selected_game != "Select a game...":
         parts = selected_game.replace(" @ ", "@").split("@")
-        st.write("**📊 Pick the Winner:**")
-        side = st.radio("Your pick:", [f"{parts[1]} (Home)", f"{parts[0]} (Away)"], horizontal=True, key="team_pick")
+        team_pick = st.radio("Pick Winner:", [f"{parts[1]} (Home)", f"{parts[0]} (Away)"], horizontal=True)
+        side = team_pick
     else:
-        side = "Select game first"
-        st.warning("⚠️ Select a game first")
+        st.warning("⚠️ Select a game first to pick a team")
+        side = None
 
-if st.button("✅ ADD POSITION", use_container_width=True):
-    if selected_game != "Select a game..." and side != "Select game first":
+st.write("**Step 3: Enter Position Details**")
+c1, c2 = st.columns(2)
+price_paid = c1.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1)
+contracts = c2.number_input("📄 Contracts", min_value=1, value=1, step=1)
+
+if st.button("✅ ADD POSITION", use_container_width=True, type="primary"):
+    if selected_game != "Select a game..." and side is not None:
         game_key = selected_game.replace(" @ ", "@")
         parts = game_key.split("@")
         if market_type == "Moneyline (Winner)":
@@ -373,6 +341,8 @@ if st.button("✅ ADD POSITION", use_container_width=True):
             st.session_state.positions.append({'game': game_key, 'type': 'totals', 'side': side_clean, 'threshold': threshold_select, 'price': price_paid, 'contracts': contracts, 'cost': round(price_paid * contracts / 100, 2)})
         save_positions_to_url(st.session_state.positions)
         st.rerun()
+    else:
+        st.error("Select a game and make your pick first!")
 
 st.divider()
 
@@ -511,25 +481,5 @@ else:
     st.info("No games today")
 
 st.divider()
-
-# ========== HOW TO USE ==========
-st.subheader("📖 HOW TO USE THIS APP")
-st.markdown("""
-**🏥 INJURY REPORT** — Shows key player injuries for today's games.
-
-**📅 B2B TEAMS** — Teams playing back-to-back (played yesterday + playing today).
-
-**➕ POSITION TRACKER** — Track your bets with live P&L projections. **Positions auto-save in the URL** — bookmark or share!
-
-**🔥 PACE SCANNER** — Quick view of all live game paces. 🟢 SLOW (<4.5/min) favors unders, 🔴 SHOOTOUT (>5.2/min) favors overs.
-
-**📺 ALL GAMES** — Simple scoreboard with live scores for all today's games.
-
----
-
-**💡 TIP**: Your positions are saved in the URL. Bookmark the page to save your positions, or copy the URL to restore later.
-""")
-
-st.divider()
 st.caption("⚠️ For entertainment only. Not financial advice.")
-st.caption("DEMO v15.15 - Public Version")
+st.caption("DEMO v15.16 - Public Version")
