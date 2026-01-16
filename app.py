@@ -3,38 +3,39 @@ import requests
 from datetime import datetime, timedelta
 import pytz
 import json
-from streamlit.components.v1 import html
+import base64
 
 st.set_page_config(page_title="NBA Edge Finder (DEMO)", page_icon="🏀", layout="wide")
 
-# ========== BROWSER STORAGE (localStorage) ==========
-def save_to_browser(key, data):
-    """Save data to browser localStorage"""
-    json_str = json.dumps(data)
-    html(f"""
-        <script>
-            localStorage.setItem('{key}', '{json_str}');
-        </script>
-    """, height=0)
+# ========== URL-BASED PERSISTENCE ==========
+def save_positions_to_url(positions):
+    """Encode positions to URL query param"""
+    if positions:
+        json_str = json.dumps(positions)
+        encoded = base64.b64encode(json_str.encode()).decode()
+        st.query_params["p"] = encoded
+    else:
+        if "p" in st.query_params:
+            del st.query_params["p"]
 
-def load_from_browser_script():
-    """Inject script to load data from localStorage into a hidden div"""
-    return """
-        <script>
-            const data = localStorage.getItem('nba_positions_demo');
-            if (data) {
-                window.parent.postMessage({type: 'localStorage', data: data}, '*');
-            }
-        </script>
-    """
+def load_positions_from_url():
+    """Decode positions from URL query param"""
+    if "p" in st.query_params:
+        try:
+            encoded = st.query_params["p"]
+            json_str = base64.b64decode(encoded.encode()).decode()
+            return json.loads(json_str)
+        except:
+            return []
+    return []
 
 # ========== AUTO-REFRESH SETUP ==========
 if 'auto_refresh' not in st.session_state:
     st.session_state.auto_refresh = False
+
+# Load positions from URL on startup
 if 'positions' not in st.session_state:
-    st.session_state.positions = []
-if 'positions_loaded' not in st.session_state:
-    st.session_state.positions_loaded = False
+    st.session_state.positions = load_positions_from_url()
 
 if st.session_state.auto_refresh:
     st.markdown('<meta http-equiv="refresh" content="30">', unsafe_allow_html=True)
@@ -143,8 +144,8 @@ with st.sidebar:
     🔴 **SHOOTOUT** → Over 5.2/min
     """)
     st.divider()
-    st.caption("DEMO v15.11")
-    st.caption("💾 Positions saved in browser")
+    st.caption("DEMO v15.12")
+    st.caption("💾 Positions saved in URL")
 
 def fetch_espn_scores():
     url = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
@@ -267,7 +268,7 @@ yesterday_teams = yesterday_teams_raw.intersection(today_teams)
 # ========== HEADER ==========
 st.title("🏀 NBA EDGE FINDER (DEMO)")
 hdr1, hdr2, hdr3 = st.columns([3, 1, 1])
-hdr1.caption(f"{auto_status} | Last update: {now.strftime('%I:%M:%S %p ET')} | DEMO v15.11")
+hdr1.caption(f"{auto_status} | Last update: {now.strftime('%I:%M:%S %p ET')} | DEMO v15.12")
 
 if hdr2.button("🔄 Auto" if not st.session_state.auto_refresh else "⏹️ Stop", use_container_width=True):
     st.session_state.auto_refresh = not st.session_state.auto_refresh
@@ -276,32 +277,7 @@ if hdr2.button("🔄 Auto" if not st.session_state.auto_refresh else "⏹️ Sto
 if hdr3.button("🔄 Refresh", use_container_width=True):
     st.rerun()
 
-# ========== LOAD POSITIONS FROM BROWSER ==========
-st.markdown("#### 💾 Position Storage")
-positions_input = st.text_area(
-    "📋 Paste your saved positions here (or copy to save):",
-    value=json.dumps(st.session_state.positions) if st.session_state.positions else "[]",
-    height=100,
-    key="positions_json",
-    help="Copy this JSON to save your positions. Paste it back after refresh to restore."
-)
 
-col_load, col_clear = st.columns(2)
-if col_load.button("📥 Load Positions", use_container_width=True):
-    try:
-        loaded = json.loads(positions_input)
-        if isinstance(loaded, list):
-            st.session_state.positions = loaded
-            st.success(f"✅ Loaded {len(loaded)} positions!")
-            st.rerun()
-    except:
-        st.error("❌ Invalid JSON format")
-
-if col_clear.button("🗑️ Clear All", use_container_width=True):
-    st.session_state.positions = []
-    st.rerun()
-
-st.divider()
 
 # ========== 🏥 INJURY REPORT ==========
 st.subheader("🏥 INJURY REPORT - TODAY'S GAMES")
@@ -390,7 +366,7 @@ with st.form("add_position_form"):
         else:
             side_clean = "NO" if "NO" in side else "YES"
             st.session_state.positions.append({'game': game_key, 'type': 'totals', 'side': side_clean, 'threshold': threshold_select, 'price': price_paid, 'contracts': contracts, 'cost': round(price_paid * contracts / 100, 2)})
-        st.success("✅ Position added! Copy the JSON above to save.")
+        save_positions_to_url(st.session_state.positions)
         st.rerun()
 
 st.divider()
@@ -470,6 +446,7 @@ if st.session_state.positions:
             btn1.link_button(f"🔗 Trade on Kalshi", kalshi_url, use_container_width=True)
             if btn2.button("🗑️ Remove", key=f"del_{idx}"):
                 st.session_state.positions.pop(idx)
+                save_positions_to_url(st.session_state.positions)
                 st.rerun()
         else:
             if pos_type == 'ml': display_text = f"ML: {pos.get('pick', '?')}"
@@ -477,9 +454,13 @@ if st.session_state.positions:
             st.markdown(f"<div style='background:#1a1a2e;padding:15px;border-radius:10px;border:1px solid #444;margin-bottom:10px'><span style='color:#888'>{game_key.replace('@', ' @ ')} — {display_text} — {contracts}x @ {price}¢</span><span style='color:#666;margin-left:15px'>⏳ Game not started</span></div>", unsafe_allow_html=True)
             if st.button("🗑️ Remove", key=f"del_{idx}"):
                 st.session_state.positions.pop(idx)
+                save_positions_to_url(st.session_state.positions)
                 st.rerun()
     
-    st.info("💡 **To save positions**: Copy the JSON text from the box above before closing/refreshing. Paste it back to restore.")
+    if st.button("🗑️ Clear All Positions", use_container_width=True):
+        st.session_state.positions = []
+        save_positions_to_url(st.session_state.positions)
+        st.rerun()
 else:
     st.info("No positions tracked — use the form above to add your first position")
 
@@ -533,9 +514,7 @@ st.markdown("""
 
 **📅 B2B TEAMS** — Teams playing back-to-back (played yesterday + playing today).
 
-**💾 POSITION STORAGE** — Copy/paste the JSON to save your positions between sessions.
-
-**➕ POSITION TRACKER** — Track your bets with live P&L projections as games progress.
+**➕ POSITION TRACKER** — Track your bets with live P&L projections. **Positions auto-save in the URL** — bookmark or share!
 
 **🔥 PACE SCANNER** — Quick view of all live game paces. 🟢 SLOW (<4.5/min) favors unders, 🔴 SHOOTOUT (>5.2/min) favors overs.
 
@@ -543,9 +522,9 @@ st.markdown("""
 
 ---
 
-**💡 TIP**: Use the Pace Scanner to identify games trending under/over their projected totals, then track your positions to monitor cushion in real-time.
+**💡 TIP**: Your positions are saved in the URL. Bookmark the page to save your positions, or copy the URL to restore later.
 """)
 
 st.divider()
 st.caption("⚠️ For entertainment only. Not financial advice.")
-st.caption("DEMO v15.11 - Public Version")
+st.caption("DEMO v15.12 - Public Version")
