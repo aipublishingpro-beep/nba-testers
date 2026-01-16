@@ -344,16 +344,20 @@ if selected_game != "Select a game...":
 market_type = st.radio("📈 Market Type", ["Moneyline (Winner)", "Totals (Over/Under)"], horizontal=True, key="market_type_radio")
 
 p1, p2, p3 = st.columns(3)
-if selected_game != "Select a game...":
-    parts = selected_game.replace(" @ ", "@").split("@")
-    ml_options = [f"{parts[1]} (Home)", f"{parts[0]} (Away)"]
-else:
-    ml_options = ["Select game first"]
 
-if market_type == "Moneyline (Winner)":
-    side = p1.selectbox("📊 Pick Winner", ml_options, key="ml_picker")
+# Dynamic options based on market type
+if market_type == "Totals (Over/Under)":
+    options = ["NO (Under)", "YES (Over)"]
+    label = "📊 Side"
 else:
-    side = p1.selectbox("📊 Side", ["NO (Under)", "YES (Over)"], key="totals_picker")
+    if selected_game != "Select a game...":
+        parts = selected_game.replace(" @ ", "@").split("@")
+        options = [f"{parts[1]} (Home)", f"{parts[0]} (Away)"]
+    else:
+        options = ["Select game first"]
+    label = "📊 Pick Winner"
+
+side = p1.selectbox(label, options, key=f"side_{market_type}")
 
 price_paid = p2.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1)
 contracts = p3.number_input("📄 Contracts", min_value=1, value=st.session_state.default_contracts, step=1)
