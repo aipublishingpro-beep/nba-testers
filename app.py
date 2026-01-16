@@ -144,7 +144,7 @@ with st.sidebar:
     🔴 **SHOOTOUT** → Over 5.2/min
     """)
     st.divider()
-    st.caption("DEMO v15.14")
+    st.caption("DEMO v15.15")
     st.caption("💾 Positions saved in URL")
 
 def fetch_espn_scores():
@@ -268,7 +268,7 @@ yesterday_teams = yesterday_teams_raw.intersection(today_teams)
 # ========== HEADER ==========
 st.title("🏀 NBA EDGE FINDER (DEMO)")
 hdr1, hdr2, hdr3 = st.columns([3, 1, 1])
-hdr1.caption(f"{auto_status} | Last update: {now.strftime('%I:%M:%S %p ET')} | DEMO v15.14")
+hdr1.caption(f"{auto_status} | Last update: {now.strftime('%I:%M:%S %p ET')} | DEMO v15.15")
 
 if hdr2.button("🔄 Auto" if not st.session_state.auto_refresh else "⏹️ Stop", use_container_width=True):
     st.session_state.auto_refresh = not st.session_state.auto_refresh
@@ -339,37 +339,27 @@ if selected_game != "Select a game...":
     col_tot.link_button(f"🔗 Totals on Kalshi", build_kalshi_totals_url(away_t, home_t), use_container_width=True)
 
 # ========== MARKET TYPE AND SIDE SELECTION ==========
-# Track market type changes to force widget refresh
-if 'last_market_type' not in st.session_state:
-    st.session_state.last_market_type = "Moneyline (Winner)"
-
-market_type = st.radio("📈 Market Type", ["Moneyline (Winner)", "Totals (Over/Under)"], horizontal=True, key="market_type_radio")
-
-# Force rerun if market type changed
-if market_type != st.session_state.last_market_type:
-    st.session_state.last_market_type = market_type
-    st.rerun()
+market_type = st.radio("📈 Market Type", ["Moneyline (Winner)", "Totals (Over/Under)"], horizontal=True, key="mkt_type")
 
 p1, p2, p3 = st.columns(3)
-
-# Show appropriate selectbox based on market type
-if market_type == "Totals (Over/Under)":
-    side = p1.selectbox("📊 Side (YES=Over, NO=Under)", ["NO (Under)", "YES (Over)"], key="side_totals")
-else:
-    if selected_game != "Select a game...":
-        parts = selected_game.replace(" @ ", "@").split("@")
-        ml_options = [f"{parts[1]} (Home)", f"{parts[0]} (Away)"]
-    else:
-        ml_options = ["Select game first"]
-    side = p1.selectbox("📊 Pick Winner", ml_options, key="side_ml")
 
 price_paid = p2.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1)
 contracts = p3.number_input("📄 Contracts", min_value=1, value=st.session_state.default_contracts, step=1)
 
+# YES/NO selection for Totals - using radio buttons (more visible)
 if market_type == "Totals (Over/Under)":
+    st.write("**📊 Select YES (Over) or NO (Under):**")
+    side = st.radio("Your pick:", ["NO (Under)", "YES (Over)"], horizontal=True, key="yes_no_pick")
     threshold_select = st.number_input("🎯 Threshold", min_value=180.0, max_value=280.0, value=225.5, step=0.5)
 else:
     threshold_select = 0
+    if selected_game != "Select a game...":
+        parts = selected_game.replace(" @ ", "@").split("@")
+        st.write("**📊 Pick the Winner:**")
+        side = st.radio("Your pick:", [f"{parts[1]} (Home)", f"{parts[0]} (Away)"], horizontal=True, key="team_pick")
+    else:
+        side = "Select game first"
+        st.warning("⚠️ Select a game first")
 
 if st.button("✅ ADD POSITION", use_container_width=True):
     if selected_game != "Select a game..." and side != "Select game first":
@@ -542,4 +532,4 @@ st.markdown("""
 
 st.divider()
 st.caption("⚠️ For entertainment only. Not financial advice.")
-st.caption("DEMO v15.14 - Public Version")
+st.caption("DEMO v15.15 - Public Version")
