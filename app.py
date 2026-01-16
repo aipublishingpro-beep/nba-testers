@@ -2,31 +2,87 @@ import streamlit as st
 import requests
 from datetime import datetime, timedelta
 import pytz
+import json
+import os
 
-st.set_page_config(page_title="NBA Edge Finder - Public", page_icon="🎯", layout="wide")
+st.set_page_config(page_title="NBA Edge Finder", page_icon="🎯", layout="wide")
 
-# Clean minimal CSS - NO custom radio styling
+# Fixed CSS - works with current Streamlit DOM structure
 st.markdown("""
 <style>
-/* Disabled button styling */
-.info-only-btn {
-    background: linear-gradient(135deg, #333, #444) !important;
-    color: #888 !important;
-    cursor: not-allowed !important;
-    padding: 10px 16px;
-    border-radius: 8px;
-    font-weight: 700;
-    border: 1px solid #555;
+/* Make radio labels clickable again */
+div[role="radiogroup"] label {
+    cursor: pointer;
+}
+
+/* YES / NO pill styling */
+div[role="radiogroup"] label span {
+    padding: 8px 18px;
+    border-radius: 10px;
     display: inline-block;
+    font-weight: 700;
+}
+
+/* Selected state */
+div[role="radiogroup"] input:checked + div span {
+    box-shadow: inset 0 0 0 2px white;
+}
+
+/* NO (first option) - Green */
+div[role="radiogroup"] label:nth-of-type(1) span {
+    background: linear-gradient(135deg, #102a1a, #163a26);
+    border: 2px solid #00ff88;
+    color: #ccffee;
+}
+
+/* YES (second option) - Red */
+div[role="radiogroup"] label:nth-of-type(2) span {
+    background: linear-gradient(135deg, #2a1515, #3a1a1a);
+    border: 2px solid #ff4444;
+    color: #ffcccc;
+}
+
+.stLinkButton > a {
+    background-color: #00aa00 !important;
+    border-color: #00aa00 !important;
+    color: white !important;
+}
+.stLinkButton > a:hover {
+    background-color: #00cc00 !important;
+    border-color: #00cc00 !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
+# ========== PERSISTENT STORAGE ==========
+POSITIONS_FILE = "nba_positions.json"
+
+def load_positions():
+    try:
+        if os.path.exists(POSITIONS_FILE):
+            with open(POSITIONS_FILE, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        st.warning(f"Could not load positions: {e}")
+    return []
+
+def save_positions(positions):
+    try:
+        with open(POSITIONS_FILE, 'w') as f:
+            json.dump(positions, f, indent=2)
+    except Exception as e:
+        st.warning(f"Could not save positions: {e}")
+
 # ========== SESSION STATE INIT ==========
+st.session_state.setdefault("totals_side_radio", "NO (Under)")
+st.session_state.setdefault("ml_pick_radio", None)
+
 if 'auto_refresh' not in st.session_state:
     st.session_state.auto_refresh = False
 if "positions" not in st.session_state:
-    st.session_state.positions = []
+    st.session_state.positions = load_positions()
+if 'default_contracts' not in st.session_state:
+    st.session_state.default_contracts = 1
 if "selected_side" not in st.session_state:
     st.session_state.selected_side = "NO"
 if "selected_threshold" not in st.session_state:
@@ -34,15 +90,39 @@ if "selected_threshold" not in st.session_state:
 if "selected_ml_pick" not in st.session_state:
     st.session_state.selected_ml_pick = None
 
-# Prevent phantom rerenders
-st.session_state.setdefault("totals_side_radio", "NO (Under)")
-st.session_state.setdefault("ml_pick_radio", None)
-
 if st.session_state.auto_refresh:
     st.markdown('<meta http-equiv="refresh" content="30">', unsafe_allow_html=True)
     auto_status = "🔄 Auto-refresh ON (30s)"
 else:
     auto_status = "⏸️ Auto-refresh OFF"
+
+# ========== KALSHI TEAM CODES ==========
+KALSHI_CODES = {
+    "Atlanta": "atl", "Boston": "bos", "Brooklyn": "bkn", "Charlotte": "cha",
+    "Chicago": "chi", "Cleveland": "cle", "Dallas": "dal", "Denver": "den",
+    "Detroit": "det", "Golden State": "gsw", "Houston": "hou", "Indiana": "ind",
+    "LA Clippers": "lac", "LA Lakers": "lal", "Memphis": "mem", "Miami": "mia",
+    "Milwaukee": "mil", "Minnesota": "min", "New Orleans": "nop", "New York": "nyk",
+    "Oklahoma City": "okc", "Orlando": "orl", "Philadelphia": "phi", "Phoenix": "phx",
+    "Portland": "por", "Sacramento": "sac", "San Antonio": "sas", "Toronto": "tor",
+    "Utah": "uta", "Washington": "was"
+}
+
+def build_kalshi_totals_url(away_team, home_team):
+    away_code = KALSHI_CODES.get(away_team, "xxx")
+    home_code = KALSHI_CODES.get(home_team, "xxx")
+    today = datetime.now(pytz.timezone('US/Eastern'))
+    date_str = today.strftime("%y%b%d").lower()
+    ticker = f"kxnbatotal-{date_str}{away_code}{home_code}"
+    return f"https://kalshi.com/markets/kxnbatotal/pro-basketball-total-points/{ticker}"
+
+def build_kalshi_ml_url(away_team, home_team):
+    away_code = KALSHI_CODES.get(away_team, "xxx")
+    home_code = KALSHI_CODES.get(home_team, "xxx")
+    today = datetime.now(pytz.timezone('US/Eastern'))
+    date_str = today.strftime("%y%b%d").lower()
+    ticker = f"kxnbagame-{date_str}{away_code}{home_code}"
+    return f"https://kalshi.com/markets/kxnbagame/pro-basketball-moneyline/{ticker}"
 
 # ========== STAR PLAYERS DATABASE ==========
 STAR_PLAYERS_DB = {
@@ -80,12 +160,6 @@ STAR_PLAYERS_DB = {
 
 # ========== SIDEBAR LEGEND ==========
 with st.sidebar:
-    st.header("📢 PUBLIC VERSION")
-    st.info("ℹ️ **Info Only** — No trading")
-    
-    st.divider()
-    
-    # ========== LEGEND ==========
     st.header("📖 LEGEND")
     st.subheader("🎯 ML Signal Tiers")
     st.markdown("🟢 **STRONG BUY** → 8.0+ score\n\n🔵 **BUY** → 6.5 - 7.9 score\n\n🟡 **LEAN** → 5.5 - 6.4 score\n\n⚪ **TOSS-UP** → 4.5 - 5.4 score\n\n🔴 **SKIP** → Below 4.5")
@@ -99,8 +173,8 @@ with st.sidebar:
     st.subheader("🔥 Pace Labels")
     st.markdown("🟢 **SLOW** → Under 4.5/min\n\n🟡 **AVG** → 4.5 - 4.8/min\n\n🟠 **FAST** → 4.8 - 5.2/min\n\n🔴 **SHOOTOUT** → Over 5.2/min")
     st.divider()
-    st.caption("v15.14-PUBLIC")
-    st.caption("📊 Information only")
+    st.caption("v15.14")
+    st.caption("💾 Positions persist")
 
 # ========== TEAM DATA ==========
 TEAM_ABBREVS = {
@@ -581,9 +655,8 @@ yesterday_teams = yesterday_teams_raw.intersection(today_teams)
 
 # ========== HEADER ==========
 st.title("🎯 NBA EDGE FINDER")
-st.markdown("<span style='background:#ff8800;color:#000;padding:4px 12px;border-radius:6px;font-weight:bold'>📢 PUBLIC INFO VERSION</span>", unsafe_allow_html=True)
 hdr1, hdr2, hdr3 = st.columns([3, 1, 1])
-hdr1.caption(f"{auto_status} | Last update: {now.strftime('%I:%M:%S %p ET')} | v15.14-PUBLIC")
+hdr1.caption(f"{auto_status} | Last update: {now.strftime('%I:%M:%S %p ET')} | v15.14")
 
 if hdr2.button("🔄 Auto" if not st.session_state.auto_refresh else "⏹️ Stop", use_container_width=True):
     st.session_state.auto_refresh = not st.session_state.auto_refresh
@@ -591,9 +664,6 @@ if hdr2.button("🔄 Auto" if not st.session_state.auto_refresh else "⏹️ Sto
 
 if hdr3.button("🔄 Refresh", use_container_width=True):
     st.rerun()
-
-# ========== INFO BANNER ==========
-st.markdown(f"<div style='background:linear-gradient(135deg,#1a1a3e,#2a2a4e);padding:10px 15px;border-radius:8px;border:2px solid #ff8800;margin-bottom:15px'><span style='color:#ff8800;font-weight:bold'>📊 INFORMATION ONLY</span> <span style='color:#aaa'>— This app does not place trades or connect to any exchange</span></div>", unsafe_allow_html=True)
 
 # ========== INJURY REPORT ==========
 st.subheader("🏥 INJURY REPORT - TODAY'S GAMES")
@@ -663,10 +733,8 @@ for game_key, g in games.items():
     except:
         continue
 
-# Sort by score descending
 ml_results.sort(key=lambda x: x["score"], reverse=True)
 
-# Bucket by tier
 tiers = {
     "🟢 STRONG BUY": [],
     "🔵 BUY": [],
@@ -691,6 +759,8 @@ for label, rows in tiers.items():
     st.markdown(f"### {label}")
 
     for r in rows:
+        kalshi_url = build_kalshi_ml_url(r["away"], r["home"])
+
         reasons = " • ".join(r["reasons"])
         edge_txt = f"+{int(r['edge'])}%"
 
@@ -711,9 +781,12 @@ for label, rows in tiers.items():
                         {reasons}
                     </div>
                 </div>
-                <span class="info-only-btn">
-                   ℹ️ INFO ONLY
-                </span>
+                <a href="{kalshi_url}" target="_blank"
+                   style="background:#16a34a;color:#fff;
+                          padding:10px 16px;border-radius:8px;
+                          text-decoration:none;font-weight:700">
+                   🚀 BUY {r['pick']}
+                </a>
             </div>
             """,
             unsafe_allow_html=True
@@ -721,55 +794,68 @@ for label, rows in tiers.items():
 
 st.divider()
 
-# ========== TRACK A POSITION ==========
-st.subheader("➕ TRACK A POSITION")
+# ========== ADD NEW POSITION ==========
+st.subheader("➕ ADD NEW POSITION")
 
 game_options = ["Select a game..."] + [gk.replace("@", " @ ") for gk in game_list]
-selected_game = st.selectbox("🏀 Game", game_options, key="game_select", label_visibility="collapsed")
+selected_game = st.selectbox("🏀 Game", game_options, key="game_select")
+
+if selected_game != "Select a game...":
+    parts = selected_game.replace(" @ ", "@").split("@")
+    away_t, home_t = parts[0], parts[1]
+    col_ml, col_tot = st.columns(2)
+    col_ml.link_button(f"🔗 ML on Kalshi", build_kalshi_ml_url(away_t, home_t), use_container_width=True)
+    col_tot.link_button(f"🔗 Totals on Kalshi", build_kalshi_totals_url(away_t, home_t), use_container_width=True)
 
 market_type = st.radio("📈 Market Type", ["Moneyline (Winner)", "Totals (Over/Under)"], horizontal=True, key="mkt_type")
+
+game_started = False
+if selected_game != "Select a game...":
+    gkey = selected_game.replace(" @ ", "@")
+    g = games.get(gkey)
+    if g and g["period"] > 0:
+        game_started = True
 
 p1, p2, p3 = st.columns(3)
 
 if market_type == "Totals (Over/Under)":
     with p1:
         st.caption("📊 Side")
-    price_paid = p2.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1)
-    contracts = p3.number_input("📄 Contracts", min_value=1, value=1, step=1)
-    
-    yes_no = st.radio("", ["NO (Under)", "YES (Over)"], horizontal=True, key="totals_side_radio", label_visibility="collapsed")
-    st.session_state.selected_side = "NO" if yes_no.startswith("NO") else "YES"
+        yes_no = st.radio("", ["NO (Under)", "YES (Over)"], horizontal=True, key="totals_side_radio")
+        st.session_state.selected_side = "NO" if yes_no.startswith("NO") else "YES"
     
     st.session_state.selected_threshold = st.number_input("🎯 Threshold", min_value=180.0, max_value=280.0, value=st.session_state.selected_threshold, step=0.5)
 else:
     with p1:
-        st.caption("📊 Pick Winner")
-    price_paid = p2.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1)
-    contracts = p3.number_input("📄 Contracts", min_value=1, value=1, step=1)
-    
-    if selected_game != "Select a game...":
-        parts = selected_game.replace(" @ ", "@").split("@")
-        st.session_state.selected_ml_pick = st.radio("", [parts[1], parts[0]], horizontal=True, key="ml_pick_radio", label_visibility="collapsed")
-    else:
-        st.session_state.selected_ml_pick = None
-        st.warning("⚠️ Select a game first")
+        if selected_game != "Select a game...":
+            parts = selected_game.replace(" @ ", "@").split("@")
+            st.caption("📊 Pick Winner")
+            st.session_state.selected_ml_pick = st.radio("", [parts[1], parts[0]], horizontal=True, key="ml_pick_radio")
+        else:
+            st.session_state.selected_ml_pick = None
+            st.warning("⚠️ Select a game first")
 
-# Mode selector
-trade_mode = st.radio("🎯 Mode", ["📝 Paper Track", "💰 LIVE TRADE"], horizontal=True, key="trade_mode")
+price_paid = p2.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1)
+contracts = p3.number_input("📄 Contracts", min_value=1, value=st.session_state.default_contracts, step=1)
 
 if st.button("✅ ADD POSITION", use_container_width=True, type="primary"):
     if selected_game == "Select a game...":
         st.error("Select a game first!")
     else:
         game_key = selected_game.replace(" @ ", "@")
+        parts = game_key.split("@")
+        away_t, home_t = parts[0], parts[1]
+        
         if market_type == "Moneyline (Winner)":
             if st.session_state.selected_ml_pick is None:
                 st.error("Pick a team first!")
             else:
                 st.session_state.positions.append({"game": game_key, "type": "ml", "pick": st.session_state.selected_ml_pick, "price": price_paid, "contracts": contracts, "cost": round(price_paid * contracts / 100, 2)})
+                save_positions(st.session_state.positions)
                 st.rerun()
         else:
             st.session_state.positions.append({"game": game_key, "type": "totals", "side": st.session_state.selected_side, "threshold": st.session_state.selected_threshold, "price": price_paid, "contracts": contracts, "cost": round(price_paid * contracts / 100, 2)})
+            save_positions(st.session_state.positions)
             st.rerun()
 
 st.divider()
@@ -849,8 +935,14 @@ if st.session_state.positions:
                 
                 st.markdown(f"<div style='background:linear-gradient(135deg,#1a1a2e,#16213e);padding:15px;border-radius:10px;border:2px solid {status_color};margin-bottom:10px'><div style='display:flex;justify-content:space-between;align-items:center'><div><span style='color:#fff;font-size:1.2em;font-weight:bold'>{game_key.replace('@', ' @ ')}</span><span style='color:#888;margin-left:10px'>{game_status}</span></div><span style='color:{status_color};font-size:1.3em;font-weight:bold'>{status_label}</span></div><div style='margin-top:10px;display:flex;gap:30px;flex-wrap:wrap'><span style='color:#aaa'>📊 <b style=\"color:#fff\">{pos.get('side', 'NO')} {pos.get('threshold', 0)}</b></span><span style='color:#aaa'>💵 <b style=\"color:#fff\">{contracts}x @ {price}¢</b> (${cost:.2f})</span><span style='color:#aaa'>📈 Proj: <b style=\"color:#fff\">{projected if projected else '—'}</b></span><span style='color:#aaa'>🎯 Cushion: <b style=\"color:{status_color}\">{cushion:+.0f}</b></span><span style='color:{pnl_color}'>{pnl_display}</span></div></div>", unsafe_allow_html=True)
             
-            if st.button("🗑️ Remove", key=f"del_{idx}"):
+            btn1, btn2 = st.columns([3, 1])
+            parts = game_key.split("@")
+            if pos_type == 'ml': kalshi_url = build_kalshi_ml_url(parts[0], parts[1])
+            else: kalshi_url = build_kalshi_totals_url(parts[0], parts[1])
+            btn1.link_button(f"🔗 Trade on Kalshi", kalshi_url, use_container_width=True)
+            if btn2.button("🗑️ Remove", key=f"del_{idx}"):
                 st.session_state.positions.pop(idx)
+                save_positions(st.session_state.positions)
                 st.rerun()
         else:
             if pos_type == 'ml': display_text = f"ML: {pos.get('pick', '?')}"
@@ -858,10 +950,12 @@ if st.session_state.positions:
             st.markdown(f"<div style='background:#1a1a2e;padding:15px;border-radius:10px;border:1px solid #444;margin-bottom:10px'><span style='color:#888'>{game_key.replace('@', ' @ ')} — {display_text} — {contracts}x @ {price}¢</span><span style='color:#666;margin-left:15px'>⏳ Game not started</span></div>", unsafe_allow_html=True)
             if st.button("🗑️ Remove", key=f"del_{idx}"):
                 st.session_state.positions.pop(idx)
+                save_positions(st.session_state.positions)
                 st.rerun()
     
     if st.button("🗑️ Clear All Positions", use_container_width=True):
         st.session_state.positions = []
+        save_positions(st.session_state.positions)
         st.rerun()
 else:
     st.info("No positions tracked — use the form above to add your first position")
@@ -901,7 +995,7 @@ THRESHOLDS = [210.5, 215.5, 220.5, 225.5, 230.5, 235.5, 240.5, 245.5, 250.5, 255
 
 cush_col1, cush_col2 = st.columns(2)
 min_minutes = cush_col1.selectbox("Min Minutes", [6, 9, 12, 15, 18], index=0, key="cush_min_select")
-cush_side = cush_col2.selectbox("Side", ["NO (Under)", "YES (Over)"], index=0, key="cush_side_select")
+cush_side = cush_col2.selectbox("Side", ["NO (Under)", "YES (Over)"], key="cush_side_select")
 is_no_side = "NO" in cush_side
 
 cushion_data = []
@@ -916,22 +1010,19 @@ for gk, g in games.items():
     pace = total / mins if mins > 0 else 0
     proj = round(pace * 48)
     
-    # Find recommended bet line
     if is_no_side:
-        # NO: find first threshold ABOVE projection, then go one higher
         candidates = [t for t in THRESHOLDS if t > proj]
         if len(candidates) >= 2:
-            bet_line = candidates[1]  # One level higher (safer)
+            bet_line = candidates[1]
         elif len(candidates) == 1:
             bet_line = candidates[0]
         else:
             continue
         cushion = bet_line - proj
     else:
-        # YES: find first threshold BELOW projection, then go one lower
         candidates = [t for t in THRESHOLDS if t < proj]
         if len(candidates) >= 2:
-            bet_line = candidates[-2]  # One level lower (safer)
+            bet_line = candidates[-2]
         elif len(candidates) == 1:
             bet_line = candidates[-1]
         else:
@@ -941,7 +1032,6 @@ for gk, g in games.items():
     if cushion < 6:
         continue
     
-    # Pace alignment check
     if is_no_side:
         if pace < 4.5: pace_status = "✅ SLOW"
         elif pace < 4.8: pace_status = "⚠️ AVG"
@@ -1007,67 +1097,5 @@ else:
     st.info("No games today")
 
 st.divider()
-
-# ========== HOW TO USE THIS APP ==========
-st.subheader("📖 HOW TO USE THIS APP")
-
-st.markdown("""
-<div style="background:linear-gradient(135deg,#1a1a2e,#16213e);padding:20px;border-radius:12px;border:1px solid #444;margin-bottom:15px">
-
-<h4 style="color:#ff8800;margin-top:0">⚠️ IMPORTANT DISCLAIMER</h4>
-
-<p style="color:#fff"><b>This app is for informational and educational purposes only.</b></p>
-
-<ul style="color:#ccc">
-<li>This app <b>does NOT place trades</b></li>
-<li>This app <b>does NOT connect to Kalshi</b> or any exchange</li>
-<li>This app <b>does NOT execute any orders</b></li>
-<li>This is a <b>public/test version</b> of a private analysis system</li>
-</ul>
-
-<h4 style="color:#38bdf8;margin-top:20px">🎯 How Picks Are Generated</h4>
-
-<p style="color:#ccc">Picks are generated <b>automatically</b> using the following factors:</p>
-
-<ul style="color:#ccc">
-<li><b>🏥 Injuries</b> — Star player availability weighted by impact (⭐⭐⭐ Superstar = 3x, ⭐⭐ All-Star = 2x)</li>
-<li><b>🛏️ Rest / Back-to-Back</b> — Teams playing on consecutive days are penalized</li>
-<li><b>✈️ Travel Distance</b> — Long road trips (1500+ miles) favor the home team</li>
-<li><b>🛡️ Defense Ratings</b> — Top-10 defenses get boosted scores</li>
-<li><b>📊 Net Rating</b> — Overall team quality differential</li>
-<li><b>🔥 Pace</b> — Fast-paced games tend toward higher totals</li>
-<li><b>🏔️ Altitude</b> — Denver home games have special weighting</li>
-</ul>
-
-<h4 style="color:#38bdf8;margin-top:20px">📊 Understanding Signal Tiers</h4>
-
-<table style="color:#ccc;width:100%">
-<tr><td>🟢 <b>STRONG BUY</b></td><td>8.0+ score — Strongest edge detected</td></tr>
-<tr><td>🔵 <b>BUY</b></td><td>6.5 - 7.9 score — Good edge</td></tr>
-<tr><td>🟡 <b>LEAN</b></td><td>5.5 - 6.4 score — Slight edge</td></tr>
-<tr><td>⚪ <b>TOSS-UP</b></td><td>4.5 - 5.4 score — No clear edge</td></tr>
-<tr><td>🔴 <b>SKIP</b></td><td>Below 4.5 — Avoid</td></tr>
-</table>
-
-<h4 style="color:#38bdf8;margin-top:20px">🔢 How to Interpret Scores</h4>
-
-<p style="color:#ccc">Scores are on a <b>scale of 1-10</b>:</p>
-<ul style="color:#ccc">
-<li><b>5.0</b> = Perfectly neutral (no edge either way)</li>
-<li><b>6.0-7.0</b> = Moderate edge</li>
-<li><b>7.0-8.0</b> = Strong edge</li>
-<li><b>8.0+</b> = Very strong edge (rare)</li>
-</ul>
-
-<p style="color:#ccc">The <b>Edge %</b> shown is a rough estimate of the implied advantage: <code>(Score - 5) × 4</code></p>
-
-<h4 style="color:#ff4444;margin-top:20px">🚫 NOT FINANCIAL ADVICE</h4>
-
-<p style="color:#fff"><b>This is NOT financial advice. Past performance does not guarantee future results. Prediction markets involve risk. Only wager what you can afford to lose.</b></p>
-
-</div>
-""", unsafe_allow_html=True)
-
-st.divider()
-st.caption("⚠️ For entertainment and educational purposes only. Not financial advice.")
-st.caption("v15.14-PUBLIC — Information only version")
+st.caption("⚠️ For entertainment only. Not financial advice.")
+st.caption("v15.14")
