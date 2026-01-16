@@ -340,24 +340,31 @@ if selected_game != "Select a game...":
     col_ml.link_button(f"🔗 ML on Kalshi", build_kalshi_ml_url(away_t, home_t), use_container_width=True)
     col_tot.link_button(f"🔗 Totals on Kalshi", build_kalshi_totals_url(away_t, home_t), use_container_width=True)
 
-with st.form("add_position_form"):
-    market_type = st.radio("📈 Market Type", ["Moneyline (Winner)", "Totals (Over/Under)"], horizontal=True)
-    p1, p2, p3 = st.columns(3)
-    if selected_game != "Select a game...":
-        parts = selected_game.replace(" @ ", "@").split("@")
-        ml_options = [f"{parts[1]} (Home)", f"{parts[0]} (Away)"]
-    else:
-        ml_options = ["Select game first"]
-    totals_options = ["NO (Under)", "YES (Over)"]
-    if market_type == "Moneyline (Winner)":
-        side = p1.selectbox("📊 Pick Winner", ml_options)
-    else:
-        side = p1.selectbox("📊 Side", totals_options)
-    price_paid = p2.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1)
-    contracts = p3.number_input("📄 Contracts", min_value=1, value=st.session_state.default_contracts, step=1)
-    threshold_select = st.number_input("🎯 Threshold (Totals only)", min_value=180.0, max_value=280.0, value=225.5, step=0.5)
-    add_btn = st.form_submit_button("✅ ADD POSITION", use_container_width=True)
-    if add_btn and selected_game != "Select a game..." and side != "Select game first":
+# ========== ADD NEW POSITION (No form - direct widgets) ==========
+market_type = st.radio("📈 Market Type", ["Moneyline (Winner)", "Totals (Over/Under)"], horizontal=True, key="market_type_radio")
+
+p1, p2, p3 = st.columns(3)
+if selected_game != "Select a game...":
+    parts = selected_game.replace(" @ ", "@").split("@")
+    ml_options = [f"{parts[1]} (Home)", f"{parts[0]} (Away)"]
+else:
+    ml_options = ["Select game first"]
+
+if market_type == "Moneyline (Winner)":
+    side = p1.selectbox("📊 Pick Winner", ml_options)
+else:
+    side = p1.selectbox("📊 Side", ["NO (Under)", "YES (Over)"])
+
+price_paid = p2.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1)
+contracts = p3.number_input("📄 Contracts", min_value=1, value=st.session_state.default_contracts, step=1)
+
+if market_type == "Totals (Over/Under)":
+    threshold_select = st.number_input("🎯 Threshold", min_value=180.0, max_value=280.0, value=225.5, step=0.5)
+else:
+    threshold_select = 0
+
+if st.button("✅ ADD POSITION", use_container_width=True):
+    if selected_game != "Select a game..." and side != "Select game first":
         game_key = selected_game.replace(" @ ", "@")
         parts = game_key.split("@")
         if market_type == "Moneyline (Winner)":
