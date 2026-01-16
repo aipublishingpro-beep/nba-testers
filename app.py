@@ -5,41 +5,9 @@ import pytz
 
 st.set_page_config(page_title="NBA Edge Finder - Public", page_icon="🎯", layout="wide")
 
-# Fixed CSS - works with current Streamlit DOM structure
+# Clean minimal CSS - NO custom radio styling
 st.markdown("""
 <style>
-/* Make radio labels clickable again */
-div[role="radiogroup"] label {
-    cursor: pointer;
-}
-
-/* YES / NO pill styling */
-div[role="radiogroup"] label span {
-    padding: 8px 18px;
-    border-radius: 10px;
-    display: inline-block;
-    font-weight: 700;
-}
-
-/* Selected state */
-div[role="radiogroup"] input:checked + div span {
-    box-shadow: inset 0 0 0 2px white;
-}
-
-/* NO (first option) - Green */
-div[role="radiogroup"] label:nth-of-type(1) span {
-    background: linear-gradient(135deg, #102a1a, #163a26);
-    border: 2px solid #00ff88;
-    color: #ccffee;
-}
-
-/* YES (second option) - Red */
-div[role="radiogroup"] label:nth-of-type(2) span {
-    background: linear-gradient(135deg, #2a1515, #3a1a1a);
-    border: 2px solid #ff4444;
-    color: #ffcccc;
-}
-
 /* Disabled button styling */
 .info-only-btn {
     background: linear-gradient(135deg, #333, #444) !important;
@@ -57,6 +25,18 @@ div[role="radiogroup"] label:nth-of-type(2) span {
 # ========== SESSION STATE INIT ==========
 if 'auto_refresh' not in st.session_state:
     st.session_state.auto_refresh = False
+if "positions" not in st.session_state:
+    st.session_state.positions = []
+if "selected_side" not in st.session_state:
+    st.session_state.selected_side = "NO"
+if "selected_threshold" not in st.session_state:
+    st.session_state.selected_threshold = 225.5
+if "selected_ml_pick" not in st.session_state:
+    st.session_state.selected_ml_pick = None
+
+# Prevent phantom rerenders
+st.session_state.setdefault("totals_side_radio", "NO (Under)")
+st.session_state.setdefault("ml_pick_radio", None)
 
 if st.session_state.auto_refresh:
     st.markdown('<meta http-equiv="refresh" content="30">', unsafe_allow_html=True)
@@ -741,6 +721,153 @@ for label, rows in tiers.items():
 
 st.divider()
 
+# ========== TRACK A POSITION ==========
+st.subheader("➕ TRACK A POSITION")
+
+game_options = ["Select a game..."] + [gk.replace("@", " @ ") for gk in game_list]
+selected_game = st.selectbox("🏀 Game", game_options, key="game_select", label_visibility="collapsed")
+
+market_type = st.radio("📈 Market Type", ["Moneyline (Winner)", "Totals (Over/Under)"], horizontal=True, key="mkt_type")
+
+p1, p2, p3 = st.columns(3)
+
+if market_type == "Totals (Over/Under)":
+    with p1:
+        st.caption("📊 Side")
+    price_paid = p2.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1)
+    contracts = p3.number_input("📄 Contracts", min_value=1, value=1, step=1)
+    
+    yes_no = st.radio("", ["NO (Under)", "YES (Over)"], horizontal=True, key="totals_side_radio", label_visibility="collapsed")
+    st.session_state.selected_side = "NO" if yes_no.startswith("NO") else "YES"
+    
+    st.session_state.selected_threshold = st.number_input("🎯 Threshold", min_value=180.0, max_value=280.0, value=st.session_state.selected_threshold, step=0.5)
+else:
+    with p1:
+        st.caption("📊 Pick Winner")
+    price_paid = p2.number_input("💵 Price (¢)", min_value=1, max_value=99, value=50, step=1)
+    contracts = p3.number_input("📄 Contracts", min_value=1, value=1, step=1)
+    
+    if selected_game != "Select a game...":
+        parts = selected_game.replace(" @ ", "@").split("@")
+        st.session_state.selected_ml_pick = st.radio("", [parts[1], parts[0]], horizontal=True, key="ml_pick_radio", label_visibility="collapsed")
+    else:
+        st.session_state.selected_ml_pick = None
+        st.warning("⚠️ Select a game first")
+
+# Mode selector
+trade_mode = st.radio("🎯 Mode", ["📝 Paper Track", "💰 LIVE TRADE"], horizontal=True, key="trade_mode")
+
+if st.button("✅ ADD POSITION", use_container_width=True, type="primary"):
+    if selected_game == "Select a game...":
+        st.error("Select a game first!")
+    else:
+        game_key = selected_game.replace(" @ ", "@")
+        if market_type == "Moneyline (Winner)":
+            if st.session_state.selected_ml_pick is None:
+                st.error("Pick a team first!")
+            else:
+                st.session_state.positions.append({"game": game_key, "type": "ml", "pick": st.session_state.selected_ml_pick, "price": price_paid, "contracts": contracts, "cost": round(price_paid * contracts / 100, 2)})
+                st.rerun()
+        else:
+            st.session_state.positions.append({"game": game_key, "type": "totals", "side": st.session_state.selected_side, "threshold": st.session_state.selected_threshold, "price": price_paid, "contracts": contracts, "cost": round(price_paid * contracts / 100, 2)})
+            st.rerun()
+
+st.divider()
+
+# ========== ACTIVE POSITIONS ==========
+st.subheader("📈 ACTIVE POSITIONS")
+
+if st.session_state.positions:
+    for idx, pos in enumerate(st.session_state.positions):
+        game_key = pos['game']
+        g = games.get(game_key)
+        price = pos.get('price', 50)
+        contracts = pos.get('contracts', 1)
+        cost = pos.get('cost', round(price * contracts / 100, 2))
+        pos_type = pos.get('type', 'totals')
+        potential_win = round((100 - price) * contracts / 100, 2)
+        potential_loss = cost
+        
+        if g:
+            total = g['total']
+            mins = get_minutes_played(g['period'], g['clock'], g['status_type'])
+            is_final = g['status_type'] == "STATUS_FINAL"
+            game_status = "FINAL" if is_final else f"Q{g['period']} {g['clock']}"
+            
+            if pos_type == 'ml':
+                pick = pos.get('pick', '')
+                parts = game_key.split("@")
+                away_team, home_team = parts[0], parts[1]
+                home_score, away_score = g['home_score'], g['away_score']
+                pick_score = home_score if pick == home_team else away_score
+                opp_score = away_score if pick == home_team else home_score
+                lead = pick_score - opp_score
+                
+                if is_final:
+                    won = pick_score > opp_score
+                    if won:
+                        status_label, status_color = "✅ WON!", "#00ff00"
+                        pnl_display, pnl_color = f"+${potential_win:.2f}", "#00ff00"
+                    else:
+                        status_label, status_color = "❌ LOST", "#ff0000"
+                        pnl_display, pnl_color = f"-${potential_loss:.2f}", "#ff0000"
+                elif mins > 0:
+                    if lead >= 15: status_label, status_color = "🟢 CRUISING", "#00ff00"
+                    elif lead >= 8: status_label, status_color = "🟢 LEADING", "#00ff00"
+                    elif lead >= 1: status_label, status_color = "🟡 AHEAD", "#ffff00"
+                    elif lead >= -5: status_label, status_color = "🟠 CLOSE", "#ff8800"
+                    else: status_label, status_color = "🔴 BEHIND", "#ff0000"
+                    pnl_display, pnl_color = f"Win: +${potential_win:.2f}", "#888888"
+                else:
+                    status_label, status_color = "⏳ WAITING", "#888888"
+                    lead = 0
+                    pnl_display, pnl_color = f"Win: +${potential_win:.2f}", "#888888"
+                
+                st.markdown(f"<div style='background:linear-gradient(135deg,#1a1a2e,#16213e);padding:15px;border-radius:10px;border:2px solid {status_color};margin-bottom:10px'><div style='display:flex;justify-content:space-between;align-items:center'><div><span style='color:#fff;font-size:1.2em;font-weight:bold'>{game_key.replace('@', ' @ ')}</span><span style='color:#888;margin-left:10px'>{game_status}</span></div><span style='color:{status_color};font-size:1.3em;font-weight:bold'>{status_label}</span></div><div style='margin-top:10px;display:flex;gap:30px;flex-wrap:wrap'><span style='color:#aaa'>🎯 <b style=\"color:#fff\">ML: {pick}</b></span><span style='color:#aaa'>💵 <b style=\"color:#fff\">{contracts}x @ {price}¢</b> (${cost:.2f})</span><span style='color:#aaa'>📊 Score: <b style=\"color:#fff\">{pick_score}-{opp_score}</b></span><span style='color:#aaa'>📈 Lead: <b style=\"color:{status_color}\">{lead:+d}</b></span><span style='color:{pnl_color}'>{pnl_display}</span></div></div>", unsafe_allow_html=True)
+            else:
+                projected = round((total / mins) * 48) if mins > 0 else None
+                cushion = (pos['threshold'] - projected) if pos.get('side') == "NO" and projected else ((projected - pos['threshold']) if projected else 0)
+                
+                if is_final:
+                    won = (total < pos['threshold']) if pos.get('side') == "NO" else (total > pos['threshold'])
+                    if won:
+                        status_label, status_color = "✅ WON!", "#00ff00"
+                        pnl_display, pnl_color = f"+${potential_win:.2f}", "#00ff00"
+                    else:
+                        status_label, status_color = "❌ LOST", "#ff0000"
+                        pnl_display, pnl_color = f"-${potential_loss:.2f}", "#ff0000"
+                elif projected:
+                    if cushion >= 15: status_label, status_color = "🟢 VERY SAFE", "#00ff00"
+                    elif cushion >= 8: status_label, status_color = "🟢 LOOKING GOOD", "#00ff00"
+                    elif cushion >= 3: status_label, status_color = "🟡 ON TRACK", "#ffff00"
+                    elif cushion >= -3: status_label, status_color = "🟠 WARNING", "#ff8800"
+                    else: status_label, status_color = "🔴 AT RISK", "#ff0000"
+                    pnl_display, pnl_color = f"Win: +${potential_win:.2f}", "#888888"
+                else:
+                    status_label, status_color = "⏳ WAITING", "#888888"
+                    pnl_display, pnl_color = f"Win: +${potential_win:.2f}", "#888888"
+                
+                st.markdown(f"<div style='background:linear-gradient(135deg,#1a1a2e,#16213e);padding:15px;border-radius:10px;border:2px solid {status_color};margin-bottom:10px'><div style='display:flex;justify-content:space-between;align-items:center'><div><span style='color:#fff;font-size:1.2em;font-weight:bold'>{game_key.replace('@', ' @ ')}</span><span style='color:#888;margin-left:10px'>{game_status}</span></div><span style='color:{status_color};font-size:1.3em;font-weight:bold'>{status_label}</span></div><div style='margin-top:10px;display:flex;gap:30px;flex-wrap:wrap'><span style='color:#aaa'>📊 <b style=\"color:#fff\">{pos.get('side', 'NO')} {pos.get('threshold', 0)}</b></span><span style='color:#aaa'>💵 <b style=\"color:#fff\">{contracts}x @ {price}¢</b> (${cost:.2f})</span><span style='color:#aaa'>📈 Proj: <b style=\"color:#fff\">{projected if projected else '—'}</b></span><span style='color:#aaa'>🎯 Cushion: <b style=\"color:{status_color}\">{cushion:+.0f}</b></span><span style='color:{pnl_color}'>{pnl_display}</span></div></div>", unsafe_allow_html=True)
+            
+            if st.button("🗑️ Remove", key=f"del_{idx}"):
+                st.session_state.positions.pop(idx)
+                st.rerun()
+        else:
+            if pos_type == 'ml': display_text = f"ML: {pos.get('pick', '?')}"
+            else: display_text = f"{pos.get('side', 'NO')} {pos.get('threshold', 0)}"
+            st.markdown(f"<div style='background:#1a1a2e;padding:15px;border-radius:10px;border:1px solid #444;margin-bottom:10px'><span style='color:#888'>{game_key.replace('@', ' @ ')} — {display_text} — {contracts}x @ {price}¢</span><span style='color:#666;margin-left:15px'>⏳ Game not started</span></div>", unsafe_allow_html=True)
+            if st.button("🗑️ Remove", key=f"del_{idx}"):
+                st.session_state.positions.pop(idx)
+                st.rerun()
+    
+    if st.button("🗑️ Clear All Positions", use_container_width=True):
+        st.session_state.positions = []
+        st.rerun()
+else:
+    st.info("No positions tracked — use the form above to add your first position")
+
+st.divider()
+
 # ========== PACE SCANNER ==========
 st.subheader("🔥 PACE SCANNER")
 
@@ -774,7 +901,7 @@ THRESHOLDS = [210.5, 215.5, 220.5, 225.5, 230.5, 235.5, 240.5, 245.5, 250.5, 255
 
 cush_col1, cush_col2 = st.columns(2)
 min_minutes = cush_col1.selectbox("Min Minutes", [6, 9, 12, 15, 18], index=0, key="cush_min_select")
-cush_side = cush_col2.selectbox("Side", ["NO (Under)", "YES (Over)"], key="cush_side_select")
+cush_side = cush_col2.selectbox("Side", ["NO (Under)", "YES (Over)"], index=0, key="cush_side_select")
 is_no_side = "NO" in cush_side
 
 cushion_data = []
