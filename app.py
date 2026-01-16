@@ -9,60 +9,12 @@ import hashlib
 st.set_page_config(page_title="NBA Edge Finder", page_icon="🎯", layout="wide")
 
 # ========== VISITOR TRACKING ==========
-VISITORS_FILE = "visitors_log.json"
-
 def get_session_id():
     """Generate anonymous session ID"""
     import random
     if "session_id" not in st.session_state:
         st.session_state.session_id = hashlib.md5(f"{datetime.now().isoformat()}{random.random()}".encode()).hexdigest()[:12]
     return st.session_state.session_id
-
-def load_visitors():
-    try:
-        if os.path.exists(VISITORS_FILE):
-            with open(VISITORS_FILE, 'r') as f:
-                return json.load(f)
-    except:
-        pass
-    return {"visits": [], "total_visits": 0, "unique_sessions": []}
-
-def save_visitors(data):
-    try:
-        with open(VISITORS_FILE, 'w') as f:
-            json.dump(data, f, indent=2)
-    except:
-        pass
-
-def log_visit():
-    """Log this visit"""
-    if "visit_logged" not in st.session_state:
-        visitors = load_visitors()
-        session_id = get_session_id()
-        now = datetime.now(pytz.timezone('US/Eastern'))
-        
-        visit_record = {
-            "session_id": session_id,
-            "timestamp": now.isoformat(),
-            "date": now.strftime("%Y-%m-%d"),
-            "time": now.strftime("%I:%M:%S %p ET")
-        }
-        
-        visitors["visits"].append(visit_record)
-        visitors["total_visits"] = len(visitors["visits"])
-        
-        if session_id not in visitors["unique_sessions"]:
-            visitors["unique_sessions"].append(session_id)
-        
-        # Keep last 500 visits only
-        if len(visitors["visits"]) > 500:
-            visitors["visits"] = visitors["visits"][-500:]
-        
-        save_visitors(visitors)
-        st.session_state.visit_logged = True
-
-# Log this visit
-log_visit()
 
 # ========== OWNER AUTHENTICATION ==========
 OWNER_PIN = "1234"
@@ -451,52 +403,27 @@ st.markdown("**📝 TEST MODE — Paper Tracking Only**")
 # ========== OWNER ANALYTICS PANEL (IF ACTIVE) ==========
 if st.session_state.is_owner and st.session_state.show_analytics:
     st.markdown("---")
-    st.subheader("📊 VISITOR ANALYTICS")
+    st.subheader("📊 SETTINGS / ANALYTICS")
     st.caption("🔒 Owner only — hidden from public")
     
-    visitors = load_visitors()
+    # Direct link to Streamlit Cloud Analytics
+    st.markdown("### 📈 Streamlit Cloud Analytics")
+    st.link_button("📊 Open Streamlit Analytics Dashboard", "https://share.streamlit.io/", use_container_width=True, type="primary")
+    st.caption("→ Find your app → Click ⋮ menu → Analytics")
     
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("📈 Total Visits", visitors.get("total_visits", 0))
-    col2.metric("👤 Unique Sessions", len(visitors.get("unique_sessions", [])))
+    st.markdown("---")
     
-    # Today's visits
-    today_visits = [v for v in visitors.get("visits", []) if v.get("date") == today_str]
-    col3.metric("📅 Today's Visits", len(today_visits))
+    # App Stats
+    st.markdown("### ⚙️ App Settings")
+    col1, col2 = st.columns(2)
+    col1.metric("Games Today", len(games))
+    col1.metric("B2B Teams", len(yesterday_teams))
+    col2.metric("Paper Positions", len(st.session_state.positions))
+    col2.metric("Strong Picks", len([r for r in ml_results if r["score"] >= 6.5]))
     
-    # Last 7 days
-    week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
-    week_visits = [v for v in visitors.get("visits", []) if v.get("date", "") >= week_ago]
-    col4.metric("📆 Last 7 Days", len(week_visits))
-    
-    st.markdown("### 🕐 Recent Visitors")
-    recent_visits = visitors.get("visits", [])[-20:][::-1]  # Last 20, newest first
-    
-    if recent_visits:
-        for v in recent_visits:
-            st.markdown(f"• **{v.get('date')}** at {v.get('time')} — Session: `{v.get('session_id')}`")
-    else:
-        st.info("No visits logged yet")
-    
-    st.markdown("### 📊 Visits by Day")
-    # Group by date
-    visits_by_date = {}
-    for v in visitors.get("visits", []):
-        date = v.get("date", "unknown")
-        visits_by_date[date] = visits_by_date.get(date, 0) + 1
-    
-    if visits_by_date:
-        # Show last 14 days
-        sorted_dates = sorted(visits_by_date.keys())[-14:]
-        for date in sorted_dates:
-            count = visits_by_date[date]
-            bar = "█" * min(count, 50)
-            st.markdown(f"`{date}` {bar} **{count}**")
-    
-    if st.button("🗑️ Clear All Visitor Data", type="secondary"):
-        save_visitors({"visits": [], "total_visits": 0, "unique_sessions": []})
-        st.success("Visitor data cleared!")
-        st.rerun()
+    # Session info
+    st.markdown("### 🔑 Session Info")
+    st.code(f"Session ID: {get_session_id()}\nDate: {today_str}\nAuto-refresh: {st.session_state.auto_refresh}")
     
     st.markdown("---")
 
@@ -567,15 +494,16 @@ for game_key, g in games.items():
 st.session_state["big_snapshot"] = ml_results
 ml_results.sort(key=lambda x: x["score"], reverse=True)
 
-tiers = {"🟢 STRONG BUY": [], "🔵 BUY": [], "🟡 LEAN": [], "⚪ TOSS-UP": []}
-for r in ml_results:
-    if r["score"] >= 8.0: tiers["🟢 STRONG BUY"].append(r)
-    elif r["score"] >= 6.5: tiers["🔵 BUY"].append(r)
-    elif r["score"] >= 5.5: tiers["🟡 LEAN"].append(r)
-    else: tiers["⚪ TOSS-UP"].append(r)
+tiers_list = [
+    ("🟢 STRONG BUY", [r for r in ml_results if r["score"] >= 8.0]),
+    ("🔵 BUY", [r for r in ml_results if 6.5 <= r["score"] < 8.0]),
+    ("🟡 LEAN", [r for r in ml_results if 5.5 <= r["score"] < 6.5]),
+    ("⚪ TOSS-UP", [r for r in ml_results if r["score"] < 5.5])
+]
 
-for label, rows in tiers.items():
-    if not rows: continue
+for label, rows in tiers_list:
+    if len(rows) == 0:
+        continue
     st.markdown(f"<div style='font-size:1.1em;font-weight:700;margin:8px 0 4px 0'>{label}</div>", unsafe_allow_html=True)
     for r in rows:
         kalshi_url = build_kalshi_ml_url(r["away"], r["home"])
