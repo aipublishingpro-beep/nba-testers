@@ -8,21 +8,12 @@ import os
 st.set_page_config(page_title="NBA Edge Finder", page_icon="🎯", layout="wide")
 
 # ========== OWNER AUTHENTICATION ==========
-OWNER_EMAIL = os.environ.get("OWNER_EMAIL", "owner@example.com")
+OWNER_PIN = os.environ.get("OWNER_PIN", "1234")
 
 if "is_owner" not in st.session_state:
     st.session_state.is_owner = False
-
-# Check for owner via experimental_user (Streamlit Cloud) or env fallback
-try:
-    if hasattr(st, 'experimental_user') and st.experimental_user.email == OWNER_EMAIL:
-        st.session_state.is_owner = True
-except:
-    pass
-
-# Manual owner toggle via query param (for local testing): ?owner=true
-if st.query_params.get("owner") == "true":
-    st.session_state.is_owner = True
+if "show_analytics" not in st.session_state:
+    st.session_state.show_analytics = False
 
 # ========== DAILY DATE KEY (INVALIDATION GATE) ==========
 today_str = datetime.now(pytz.timezone("US/Eastern")).strftime("%Y-%m-%d")
@@ -191,6 +182,28 @@ with st.sidebar:
     st.header("🔗 KALSHI")
     st.caption("📝 TEST MODE - Paper Tracking Only")
     st.caption("Track here → Execute on web")
+    
+    st.divider()
+    
+    # ========== OWNER ACCESS ==========
+    st.header("🔐 OWNER ACCESS")
+    if st.session_state.is_owner:
+        st.success("✅ Owner mode active")
+        if st.button("🔓 Logout", use_container_width=True):
+            st.session_state.is_owner = False
+            st.session_state.show_analytics = False
+            st.rerun()
+        if st.button("⚙️ Settings / Analytics", use_container_width=True, type="primary"):
+            st.session_state.show_analytics = not st.session_state.show_analytics
+            st.rerun()
+    else:
+        owner_pin_input = st.text_input("Enter PIN", type="password", key="pin_input")
+        if st.button("🔑 Unlock", use_container_width=True):
+            if owner_pin_input == OWNER_PIN:
+                st.session_state.is_owner = True
+                st.rerun()
+            else:
+                st.error("Invalid PIN")
     
     st.divider()
     
@@ -1232,103 +1245,60 @@ else:
 
 st.divider()
 
-# ========== OWNER-ONLY SETTINGS / ANALYTICS BUTTON ==========
-if st.session_state.get("is_owner", False):
-    # Floating bottom-right button CSS + HTML
-    st.markdown("""
-    <style>
-    .owner-fab {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 9999;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        color: white;
-        border: none;
-        border-radius: 50px;
-        padding: 12px 20px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
-        transition: all 0.3s ease;
-    }
-    .owner-fab:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
-    }
-    </style>
-    """, unsafe_allow_html=True)
+# ========== OWNER-ONLY ANALYTICS PANEL ==========
+if st.session_state.get("is_owner", False) and st.session_state.get("show_analytics", False):
+    st.subheader("⚙️ OWNER ANALYTICS PANEL")
+    st.caption("🔒 Owner access only")
     
-    # Analytics toggle in session state
-    if "show_analytics" not in st.session_state:
-        st.session_state.show_analytics = False
+    # ===== ANALYTICS CONTENT =====
+    anal_col1, anal_col2 = st.columns(2)
     
-    # Toggle button
-    if st.button("⚙️ Settings / Analytics", key="owner_analytics_btn"):
-        st.session_state.show_analytics = not st.session_state.show_analytics
-        st.rerun()
+    with anal_col1:
+        st.markdown("### 📊 Session Stats")
+        st.metric("Total Positions", len(st.session_state.positions))
+        ml_pos = len([p for p in st.session_state.positions if p.get('type') == 'ml'])
+        tot_pos = len([p for p in st.session_state.positions if p.get('type') == 'totals'])
+        st.metric("ML Positions", ml_pos)
+        st.metric("Totals Positions", tot_pos)
+        
+        total_cost = sum(p.get('cost', 0) for p in st.session_state.positions)
+        st.metric("Total Exposure", f"${total_cost:.2f}")
     
-    # Owner Analytics Panel
-    if st.session_state.get("show_analytics", False):
-        st.divider()
-        st.subheader("⚙️ OWNER ANALYTICS PANEL")
-        st.caption("🔒 Owner access only")
+    with anal_col2:
+        st.markdown("### 🎯 Today's Analysis")
+        st.metric("Games Today", len(games))
+        st.metric("B2B Teams", len(yesterday_teams))
         
-        # Safety gate
-        if not st.session_state.get("is_owner", False):
-            st.warning("Owner access only")
-            st.stop()
-        
-        # ===== ANALYTICS CONTENT =====
-        anal_col1, anal_col2 = st.columns(2)
-        
-        with anal_col1:
-            st.markdown("### 📊 Session Stats")
-            st.metric("Total Positions", len(st.session_state.positions))
-            ml_pos = len([p for p in st.session_state.positions if p.get('type') == 'ml'])
-            tot_pos = len([p for p in st.session_state.positions if p.get('type') == 'totals'])
-            st.metric("ML Positions", ml_pos)
-            st.metric("Totals Positions", tot_pos)
-            
-            total_cost = sum(p.get('cost', 0) for p in st.session_state.positions)
-            st.metric("Total Exposure", f"${total_cost:.2f}")
-        
-        with anal_col2:
-            st.markdown("### 🎯 Today's Analysis")
-            st.metric("Games Today", len(games))
-            st.metric("B2B Teams", len(yesterday_teams))
-            
-            strong_count = len([r for r in ml_results if r["score"] >= 8.0])
-            buy_count = len([r for r in ml_results if 6.5 <= r["score"] < 8.0])
-            st.metric("Strong Buy Signals", strong_count)
-            st.metric("Buy Signals", buy_count)
-        
-        st.markdown("### 📈 ML Results Breakdown")
-        if ml_results:
-            for r in ml_results:
-                tier_label = "🟢" if r["score"] >= 8.0 else "🔵" if r["score"] >= 6.5 else "🟡" if r["score"] >= 5.5 else "⚪"
-                reasons_str = " | ".join(r["reasons"])
-                st.markdown(f"{tier_label} **{r['pick']}** vs {r['away'] if r['pick']==r['home'] else r['home']} — **{r['score']}/10** — {reasons_str}")
-        else:
-            st.info("No ML results available")
-        
-        st.markdown("### 🏥 Full Injury Data")
-        if injuries:
-            for team, team_inj in sorted(injuries.items()):
-                if team_inj and team in today_teams:
-                    inj_list = ", ".join([f"{i['name']} ({i['status']})" for i in team_inj[:5]])
-                    st.markdown(f"**{team}**: {inj_list}")
-        else:
-            st.info("No injury data loaded")
-        
-        st.markdown("### ⚡ Raw Position Data")
-        if st.session_state.positions:
-            st.json(st.session_state.positions)
-        else:
-            st.info("No positions")
-        
-        st.divider()
+        strong_count = len([r for r in ml_results if r["score"] >= 8.0])
+        buy_count = len([r for r in ml_results if 6.5 <= r["score"] < 8.0])
+        st.metric("Strong Buy Signals", strong_count)
+        st.metric("Buy Signals", buy_count)
+    
+    st.markdown("### 📈 ML Results Breakdown")
+    if ml_results:
+        for r in ml_results:
+            tier_label = "🟢" if r["score"] >= 8.0 else "🔵" if r["score"] >= 6.5 else "🟡" if r["score"] >= 5.5 else "⚪"
+            reasons_str = " | ".join(r["reasons"])
+            st.markdown(f"{tier_label} **{r['pick']}** vs {r['away'] if r['pick']==r['home'] else r['home']} — **{r['score']}/10** — {reasons_str}")
+    else:
+        st.info("No ML results available")
+    
+    st.markdown("### 🏥 Full Injury Data")
+    if injuries:
+        for team, team_inj in sorted(injuries.items()):
+            if team_inj and team in today_teams:
+                inj_list = ", ".join([f"{i['name']} ({i['status']})" for i in team_inj[:5]])
+                st.markdown(f"**{team}**: {inj_list}")
+    else:
+        st.info("No injury data loaded")
+    
+    st.markdown("### ⚡ Raw Position Data")
+    if st.session_state.positions:
+        st.json(st.session_state.positions)
+    else:
+        st.info("No positions")
+    
+    st.divider()
 
 st.caption("⚠️ For entertainment only. Not financial advice.")
 st.caption("v15.30 TEST - Paper tracking only (no live trading)")
