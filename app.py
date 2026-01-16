@@ -7,6 +7,24 @@ import base64
 
 st.set_page_config(page_title="NBA Edge Finder (DEMO)", page_icon="🏀", layout="wide")
 
+# PATCH B - Kalshi-style coloring for YES/NO buttons
+st.markdown("""
+<style>
+div[role="radiogroup"] > label:nth-child(1) div {
+    background-color:#102a1a !important;
+    border:2px solid #00ff88 !important;
+    border-radius:8px;
+    padding:6px 14px;
+}
+div[role="radiogroup"] > label:nth-child(2) div {
+    background-color:#2a1515 !important;
+    border:2px solid #ff4444 !important;
+    border-radius:8px;
+    padding:6px 14px;
+}
+</style>
+""", unsafe_allow_html=True)
+
 def save_positions_to_url(positions):
     if positions:
         json_str = json.dumps(positions)
@@ -234,12 +252,12 @@ with st.sidebar:
     st.subheader("🔥 PACE LABELS")
     st.markdown("🟢 **SLOW** → Under 4.5/min\n\n🟡 **AVG** → 4.5 - 4.8/min\n\n🟠 **FAST** → 4.8 - 5.2/min\n\n🔴 **SHOOTOUT** → Over 5.2/min")
     st.divider()
-    st.caption("DEMO v15.17")
+    st.caption("DEMO v15.18")
 
 # ========== HEADER ==========
 st.title("🏀 NBA EDGE FINDER (DEMO)")
 hdr1, hdr2, hdr3 = st.columns([3, 1, 1])
-hdr1.caption(f"{auto_status} | Last update: {now.strftime('%I:%M:%S %p ET')} | DEMO v15.17")
+hdr1.caption(f"{auto_status} | Last update: {now.strftime('%I:%M:%S %p ET')} | DEMO v15.18")
 
 if hdr2.button("🔄 Auto" if not st.session_state.auto_refresh else "⏹️ Stop", use_container_width=True):
     st.session_state.auto_refresh = not st.session_state.auto_refresh
@@ -315,20 +333,36 @@ market_type = st.radio("Market:", ["Totals (Over/Under)", "Moneyline (Winner)"],
 
 st.write("**Step 2: Make Your Pick**")
 if market_type == "Totals (Over/Under)":
+    # PATCH A - detect if game has started
+    game_started = False
+    if selected_game != "Select a game...":
+        gkey = selected_game.replace(" @ ", "@")
+        g = games.get(gkey)
+        if g and g["period"] > 0:
+            game_started = True
+    
+    st.markdown("### Side")
     yes_no = st.radio(
-        "YES (Over) or NO (Under)?",
+        "",
         ["NO (Under)", "YES (Over)"],
         horizontal=True,
+        disabled=game_started,
         key="totals_side_radio"
     )
     st.session_state.selected_side = "NO" if "NO" in yes_no else "YES"
+    
+    # PATCH C - Auto-lock threshold
     st.session_state.selected_threshold = st.number_input(
         "🎯 Threshold",
         min_value=180.0,
         max_value=280.0,
         value=st.session_state.selected_threshold,
-        step=0.5
+        step=0.5,
+        disabled=game_started
     )
+    
+    if game_started:
+        st.warning("🔒 Game has started — side & threshold locked")
 else:
     if selected_game != "Select a game...":
         parts = selected_game.replace(" @ ", "@").split("@")
@@ -519,4 +553,4 @@ else:
 
 st.divider()
 st.caption("⚠️ For entertainment only. Not financial advice.")
-st.caption("DEMO v15.17 - Public Version")
+st.caption("DEMO v15.18 - Public Version")
