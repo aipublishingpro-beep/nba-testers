@@ -497,6 +497,9 @@ for game_key in games.keys():
     today_teams.add(parts[1])
 yesterday_teams = yesterday_teams_raw.intersection(today_teams)
 
+# ========== TITLE ==========
+st.title("🎯 NBA EDGE FINDER")
+
 # ============================================================
 # ========== ACTIVE POSITIONS - FIRST ON PAGE ==========
 # ============================================================
@@ -647,9 +650,6 @@ else:
     st.info("No positions — add below")
 
 st.divider()
-
-# ========== TITLE ==========
-st.title("🎯 NBA EDGE FINDER")
 
 # ========== INJURY REPORT ==========
 st.subheader("🏥 INJURY REPORT")
