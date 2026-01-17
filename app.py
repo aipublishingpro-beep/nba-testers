@@ -70,6 +70,24 @@ def save_positions(positions):
     except:
         pass
 
+# ========== LOG REAL USER ACTION ==========
+def log_user_action(action, details=""):
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials
+        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
+        client = gspread.authorize(creds)
+        sheet = client.open("NBA Testers Log").sheet1
+        sheet.append_row([
+            datetime.now(pytz.timezone("US/Eastern")).isoformat(),
+            st.session_state["sid"],
+            action,
+            details
+        ])
+    except:
+        pass
+
 # ========== SESSION STATE INIT ==========
 st.session_state.setdefault("totals_side_radio", "NO (Under)")
 st.session_state.setdefault("ml_pick_radio", None)
@@ -160,7 +178,7 @@ STAR_PLAYERS_DB = {
     "Washington": {"Jordan Poole": (2, "O"), "Kyle Kuzma": (2, "O"), "Bilal Coulibaly": (1, "D")}
 }
 
-# ========== SIDEBAR (SIMPLIFIED FOR TESTERS) ==========
+# ========== SIDEBAR ==========
 with st.sidebar:
     st.header("🔗 KALSHI")
     st.caption("⚠️ NBA not on trade API yet")
@@ -171,28 +189,7 @@ with st.sidebar:
     st.markdown("🟢 **STRONG BUY** → 8.0+\n\n🔵 **BUY** → 6.5-7.9\n\n🟡 **LEAN** → 5.5-6.4\n\n⚪ **TOSS-UP** → 4.5-5.4")
     st.divider()
     
-    # Diagnostics button - logs to Google Sheets
-    if st.button("Show details"):
-        try:
-            import gspread
-            from google.oauth2.service_account import Credentials
-            
-            scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-            creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
-            client = gspread.authorize(creds)
-            sheet = client.open("NBA Testers Log").sheet1
-            
-            sheet.append_row([
-                datetime.now(pytz.timezone("US/Eastern")).isoformat(),
-                st.session_state["sid"],
-                "show_details"
-            ])
-            st.success("✓ Logged")
-        except Exception as e:
-            st.error(f"Log failed: {e}")
-    
-    st.divider()
-    st.caption("v15.42 TESTER")
+    st.caption("v15.43 TESTER")
 
 # ========== TEAM DATA ==========
 TEAM_ABBREVS = {
@@ -612,7 +609,7 @@ st.title("🎯 NBA EDGE FINDER")
 st.subheader("📈 ACTIVE POSITIONS")
 
 hdr1, hdr2, hdr3 = st.columns([3, 1, 1])
-hdr1.caption(f"{auto_status} | {now.strftime('%I:%M:%S %p ET')} | v15.42 TESTER")
+hdr1.caption(f"{auto_status} | {now.strftime('%I:%M:%S %p ET')} | v15.43 TESTER")
 if hdr2.button("🔄 Auto" if not st.session_state.auto_refresh else "⏹️ Stop", use_container_width=True):
     st.session_state.auto_refresh = not st.session_state.auto_refresh
     st.rerun()
@@ -835,6 +832,7 @@ if strong_picks:
                 added += 1
         if added:
             save_positions(st.session_state.positions)
+            log_user_action("bulk_add_picks", f"{added} picks")
             st.rerun()
 
 st.divider()
@@ -875,10 +873,13 @@ if st.button("✅ ADD", use_container_width=True, type="primary"):
     else:
         game_key = selected_game.replace(" @ ", "@")
         if market_type == "Moneyline":
+            pos_details = f"ML|{st.session_state.selected_ml_pick}"
             st.session_state.positions.append({"game": game_key, "type": "ml", "pick": st.session_state.selected_ml_pick, "price": price_paid, "contracts": contracts, "cost": round(price_paid * contracts / 100, 2)})
         else:
+            pos_details = f"Totals|{st.session_state.selected_side}|{st.session_state.selected_threshold}"
             st.session_state.positions.append({"game": game_key, "type": "totals", "side": st.session_state.selected_side, "threshold": st.session_state.selected_threshold, "price": price_paid, "contracts": contracts, "cost": round(price_paid * contracts / 100, 2)})
         save_positions(st.session_state.positions)
+        log_user_action("position_added", f"{game_key}|{pos_details}")
         st.rerun()
 
 st.divider()
@@ -1027,4 +1028,4 @@ else:
     st.info("No games today")
 
 st.divider()
-st.caption("⚠️ Entertainment only. Not financial advice. v15.42 TESTER")
+st.caption("⚠️ Entertainment only. Not financial advice. v15.43 TESTER")
