@@ -171,13 +171,25 @@ with st.sidebar:
     st.markdown("🟢 **STRONG BUY** → 8.0+\n\n🔵 **BUY** → 6.5-7.9\n\n🟡 **LEAN** → 5.5-6.4\n\n⚪ **TOSS-UP** → 4.5-5.4")
     st.divider()
     
-    # Diagnostics button
+    # Diagnostics button - logs to Google Sheets
     if st.button("Show details"):
-        st.session_state["diagnostic_log"].append({
-            "timestamp": datetime.now(pytz.timezone("US/Eastern")).isoformat(),
-            "sid": st.session_state["sid"],
-            "action": "show_details"
-        })
+        try:
+            import gspread
+            from google.oauth2.service_account import Credentials
+            
+            scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+            creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
+            client = gspread.authorize(creds)
+            sheet = client.open("NBA Testers Log").sheet1
+            
+            sheet.append_row([
+                datetime.now(pytz.timezone("US/Eastern")).isoformat(),
+                st.session_state["sid"],
+                "show_details"
+            ])
+            st.success("✓ Logged")
+        except Exception as e:
+            st.error(f"Log failed: {e}")
     
     st.divider()
     st.caption("v15.42 TESTER")
