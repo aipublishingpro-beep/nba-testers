@@ -4,11 +4,7 @@ from datetime import datetime, timedelta
 import pytz
 import json
 import os
-import base64
 import time
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 st.set_page_config(page_title="NBA Edge Finder", page_icon="🎯", layout="wide")
 
@@ -47,26 +43,6 @@ div[role="radiogroup"] label:nth-of-type(2) span {
 }
 </style>
 """, unsafe_allow_html=True)
-
-# ========== ENCRYPTION FUNCTIONS ==========
-SALT = b'nba_edge_finder_2025'
-
-def get_encryption_key(password: str) -> bytes:
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=SALT, iterations=100000)
-    return base64.urlsafe_b64encode(kdf.derive(password.encode()))
-
-def encrypt_api_key(api_key: str, password: str) -> str:
-    key = get_encryption_key(password)
-    f = Fernet(key)
-    return f.encrypt(api_key.encode()).decode()
-
-def decrypt_api_key(encrypted_key: str, password: str) -> str:
-    try:
-        key = get_encryption_key(password)
-        f = Fernet(key)
-        return f.decrypt(encrypted_key.encode()).decode()
-    except:
-        return None
 
 # ========== PERSISTENT STORAGE ==========
 POSITIONS_FILE = "nba_positions.json"
@@ -184,7 +160,7 @@ with st.sidebar:
     st.header("📖 LEGEND")
     st.markdown("🟢 **STRONG BUY** → 8.0+\n\n🔵 **BUY** → 6.5-7.9\n\n🟡 **LEAN** → 5.5-6.4\n\n⚪ **TOSS-UP** → 4.5-5.4")
     st.divider()
-    st.caption("v15.34")
+    st.caption("v15.35")
 
 # ========== TEAM DATA ==========
 TEAM_ABBREVS = {
@@ -521,7 +497,7 @@ yesterday_teams = yesterday_teams_raw.intersection(today_teams)
 st.subheader("📈 ACTIVE POSITIONS")
 
 hdr1, hdr2, hdr3 = st.columns([3, 1, 1])
-hdr1.caption(f"{auto_status} | {now.strftime('%I:%M:%S %p ET')} | v15.34")
+hdr1.caption(f"{auto_status} | {now.strftime('%I:%M:%S %p ET')} | v15.35")
 if hdr2.button("🔄 Auto" if not st.session_state.auto_refresh else "⏹️ Stop", use_container_width=True):
     st.session_state.auto_refresh = not st.session_state.auto_refresh
     st.rerun()
@@ -777,4 +753,4 @@ else:
     st.info("No games today")
 
 st.divider()
-st.caption("⚠️ Entertainment only. Not financial advice. v15.34")
+st.caption("⚠️ Entertainment only. Not financial advice. v15.35")
