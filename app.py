@@ -177,7 +177,6 @@ with st.sidebar:
     
     st.divider()
     
-    # ========== LEGEND ==========
     st.header("📖 LEGEND")
     st.subheader("🎯 ML Signal Tiers")
     st.markdown("🟢 **STRONG BUY** → 8.0+ score\n\n🔵 **BUY** → 6.5 - 7.9 score\n\n🟡 **LEAN** → 5.5 - 6.4 score\n\n⚪ **TOSS-UP** → 4.5 - 5.4 score\n\n🔴 **SKIP** → Below 4.5")
@@ -191,7 +190,7 @@ with st.sidebar:
     st.subheader("🔥 Pace Labels")
     st.markdown("🟢 **SLOW** → Under 4.5/min\n\n🟡 **AVG** → 4.5 - 4.8/min\n\n🟠 **FAST** → 4.8 - 5.2/min\n\n🔴 **SHOOTOUT** → Over 5.2/min")
     st.divider()
-    st.caption("v15.30")
+    st.caption("v15.30 MIRROR")
     st.caption("💾 Positions persist")
     st.caption("🔗 Trade via Kalshi UI")
 
@@ -677,7 +676,7 @@ yesterday_teams = yesterday_teams_raw.intersection(today_teams)
 # ========== HEADER ==========
 st.title("🎯 NBA EDGE FINDER")
 hdr1, hdr2, hdr3 = st.columns([3, 1, 1])
-hdr1.caption(f"{auto_status} | Last update: {now.strftime('%I:%M:%S %p ET')} | v15.30")
+hdr1.caption(f"{auto_status} | Last update: {now.strftime('%I:%M:%S %p ET')} | v15.30 MIRROR")
 
 if hdr2.button("🔄 Auto" if not st.session_state.auto_refresh else "⏹️ Stop", use_container_width=True):
     st.session_state.auto_refresh = not st.session_state.auto_refresh
@@ -724,7 +723,7 @@ else:
 
 st.divider()
 
-# ========== BIG SNAPSHOT ==========
+# ========== BIG SNAPSHOT – TODAY'S ML PICKS ==========
 st.subheader("🎯 BIG SNAPSHOT – TODAY'S ML PICKS")
 st.caption(f"📅 Snapshot date: {st.session_state.get('snapshot_date', 'N/A')}")
 
@@ -733,12 +732,18 @@ ml_results = []
 for game_key, g in games.items():
     away = g["away_team"]
     home = g["home_team"]
+
     try:
-        pick, score, edge, reasons, home_stars, away_stars = calc_ml_score(home, away, yesterday_teams, injuries)
+        pick, score, edge, reasons, home_stars, away_stars = calc_ml_score(
+            home, away, yesterday_teams, injuries
+        )
+
         tier, color = get_signal_tier(score)
+        
         away_b2b = away in yesterday_teams
         home_b2b = home in yesterday_teams
         is_blowout_risk = away_b2b and not home_b2b and pick == home
+
         ml_results.append({
             "game": f"{away} vs {home}",
             "pick": pick,
@@ -911,6 +916,13 @@ if selected_game != "Select a game...":
 
 market_type = st.radio("📈 Market Type", ["Moneyline (Winner)", "Totals (Over/Under)"], horizontal=True, key="mkt_type")
 
+game_started = False
+if selected_game != "Select a game...":
+    gkey = selected_game.replace(" @ ", "@")
+    g = games.get(gkey)
+    if g and g["period"] > 0:
+        game_started = True
+
 p1, p2, p3 = st.columns(3)
 
 if market_type == "Totals (Over/Under)":
@@ -971,10 +983,9 @@ if st.session_state.positions:
         contracts = pos.get('contracts', 1)
         cost = pos.get('cost', round(price * contracts / 100, 2))
         pos_type = pos.get('type', 'totals')
-        is_live = pos.get('live', False)
         potential_win = round((100 - price) * contracts / 100, 2)
         potential_loss = cost
-        live_badge = "💰 LIVE" if is_live else "📝 Paper"
+        live_badge = "📝 Paper"
         
         if g:
             total = g['total']
@@ -1200,4 +1211,4 @@ else:
 
 st.divider()
 st.caption("⚠️ For entertainment only. Not financial advice.")
-st.caption("v15.30 - Paper track + link out (NBA API not supported)")
+st.caption("v15.30 MIRROR - Paper track + link out")
